@@ -93,3 +93,59 @@ a {
   color: #1fb5a9;
   text-decoration: none;
 }
+
+/* =========================
+   MOBILE OPTIMIZATION
+   ========================= */
+@media (max-width: 768px) {
+
+  body {
+    align-items: flex-start;
+    height: auto;
+    overflow-y: auto;
+  }
+
+  .bg {
+    filter: blur(2px);
+  }
+
+  .frame {
+    width: 100%;
+    height: auto;
+    padding: 20px 0;
+  }
+
+  .card {
+    width: 95%;
+    height: auto;
+    border-radius: 18px;
+  }
+
+  .left {
+    display: none; /* hide image panel on phone */
+  }
+
+  .right.full {
+    padding: 25px 18px;
+  }
+
+  h2 {
+    font-size: 22px;
+    text-align: center;
+  }
+
+  input {
+    font-size: 14px;
+    padding: 12px;
+  }
+
+  button {
+    font-size: 15px;
+    padding: 14px;
+  }
+
+  a {
+    text-align: center;
+    font-size: 13px;
+  }
+}

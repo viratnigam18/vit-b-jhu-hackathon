@@ -112,3 +112,54 @@ button:hover {
   margin-top: 10px;
   font-size: 14px;
 }
+/* =========================
+   MOBILE OPTIMIZATION
+   ========================= */
+@media (max-width: 768px) {
+
+  body {
+    height: auto;
+    padding: 20px 0;
+    overflow-y: auto;
+  }
+
+  .card {
+    width: 95%;
+    height: auto;
+    flex-direction: column;
+    border-radius: 18px;
+  }
+
+  .left {
+    display: none; /* hide artwork on phone */
+  }
+
+  .right {
+    width: 100%;
+    padding: 25px 20px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  h2 {
+    font-size: 18px;
+  }
+
+  input {
+    font-size: 14px;
+    padding: 12px;
+  }
+
+  .row {
+    flex-direction: column;
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  button {
+    font-size: 15px;
+    padding: 14px;
+  }
+}
