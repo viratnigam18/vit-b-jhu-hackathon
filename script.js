@@ -257,52 +257,73 @@ async function initMap() {
 }
 
 async function fetchNearbyHospitals(loc) {
+  const mirrors = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.osm.ch/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter"
+  ];
+  const radii = [5000, 15000, 30000, 50000]; // 5km, 15km, 30km, 50km
+  let found = false;
+
   try {
-    const radii = [5000, 15000, 30000, 50000]; // 5km, 15km, 30km, 50km
-    let found = false;
-
     for (const radius of radii) {
-      console.log(`Searching for hospitals near:`, loc, `Radius: ${radius / 1000}km`);
+      console.log(`Searching Radius: ${radius / 1000}km`);
 
-      // Overpass API Query
-      const query = `
-        [out:json][timeout:25];
-        (
-          node["amenity"="hospital"](around:${radius}, ${loc.lat}, ${loc.lng});
-          way["amenity"="hospital"](around:${radius}, ${loc.lat}, ${loc.lng});
-          relation["amenity"="hospital"](around:${radius}, ${loc.lat}, ${loc.lng});
-          node["healthcare"="hospital"](around:${radius}, ${loc.lat}, ${loc.lng});
-          node["amenity"="clinic"](around:${radius}, ${loc.lat}, ${loc.lng});
-        );
-        out center;
-      `;
-      const url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
+      for (const mirror of mirrors) {
+        try {
+          console.log(`Trying Overpass Mirror: ${mirror}`);
 
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Overpass API Error");
+          const query = `
+            [out:json][timeout:60];
+            (
+              node["amenity"="hospital"](around:${radius}, ${loc.lat}, ${loc.lng});
+              way["amenity"="hospital"](around:${radius}, ${loc.lat}, ${loc.lng});
+              relation["amenity"="hospital"](around:${radius}, ${loc.lat}, ${loc.lng});
+              node["healthcare"="hospital"](around:${radius}, ${loc.lat}, ${loc.lng});
+              node["amenity"="clinic"](around:${radius}, ${loc.lat}, ${loc.lng});
+            );
+            out center;
+          `;
+          const url = mirror + "?data=" + encodeURIComponent(query);
 
-      const data = await response.json();
-      if (data.elements && data.elements.length > 0) {
-        updateMapMarkers(data.elements, loc);
+          const response = await fetch(url);
+          if (!response.ok) {
+            console.warn(`Mirror ${mirror} failed with status ${response.status}. Trying next...`);
+            continue;
+          }
 
-        // Adjust map zoom based on the successful radius
-        const zoom = radius <= 5000 ? 13 : radius <= 15000 ? 11 : radius <= 30000 ? 10 : 9;
-        if (mapInstance) {
-          mapInstance.setView([loc.lat, loc.lng], zoom);
+          const data = await response.json();
+          if (data.elements && data.elements.length > 0) {
+            updateMapMarkers(data.elements, loc);
+
+            // Adjust map zoom based on the successful radius
+            const zoom = radius <= 5000 ? 13 : radius <= 15000 ? 11 : radius <= 30000 ? 10 : 9;
+            if (mapInstance) {
+              mapInstance.setView([loc.lat, loc.lng], zoom);
+            }
+
+            found = true;
+            break; // Exit mirrors loop
+          } else {
+            // No elements at this radius, but server responded. Try next radius.
+            break; // Exit mirrors loop to try next radius
+          }
+        } catch (mirrorErr) {
+          console.error(`Mirror ${mirror} Error:`, mirrorErr);
+          continue; // Try next mirror
         }
-
-        found = true;
-        break;
       }
 
+      if (found) break; // Exit radii loop
       console.warn(`No hospitals found within ${radius / 1000}km, expanding...`);
     }
 
     if (!found) {
-      console.error("No hospitals found even after maximum expansion (50km).");
+      console.error("No hospitals found even after maximum expansion and mirror retries.");
     }
   } catch (error) {
-    console.error("Hospital Fetch Error:", error);
+    console.error("Critical Hospital Fetch Error:", error);
   }
 }
 
