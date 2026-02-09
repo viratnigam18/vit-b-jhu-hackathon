@@ -258,31 +258,48 @@ async function initMap() {
 
 async function fetchNearbyHospitals(loc) {
   try {
-    console.log("Searching for hospitals near:", loc);
+    const radii = [5000, 15000, 30000, 50000]; // 5km, 15km, 30km, 50km
+    let found = false;
 
-    // Overpass API Query for hospitals and clinics within 10km
-    const query = `
-      [out:json][timeout:25];
-      (
-        node["amenity"="hospital"](around:10000, ${loc.lat}, ${loc.lng});
-        way["amenity"="hospital"](around:10000, ${loc.lat}, ${loc.lng});
-        relation["amenity"="hospital"](around:10000, ${loc.lat}, ${loc.lng});
-        node["healthcare"="hospital"](around:10000, ${loc.lat}, ${loc.lng});
-        node["amenity"="clinic"](around:10000, ${loc.lat}, ${loc.lng});
-      );
-      out center;
-    `;
-    const url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
+    for (const radius of radii) {
+      console.log(`Searching for hospitals near:`, loc, `Radius: ${radius / 1000}km`);
 
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Overpass API Error");
+      // Overpass API Query
+      const query = `
+        [out:json][timeout:25];
+        (
+          node["amenity"="hospital"](around:${radius}, ${loc.lat}, ${loc.lng});
+          way["amenity"="hospital"](around:${radius}, ${loc.lat}, ${loc.lng});
+          relation["amenity"="hospital"](around:${radius}, ${loc.lat}, ${loc.lng});
+          node["healthcare"="hospital"](around:${radius}, ${loc.lat}, ${loc.lng});
+          node["amenity"="clinic"](around:${radius}, ${loc.lat}, ${loc.lng});
+        );
+        out center;
+      `;
+      const url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
 
-    const data = await response.json();
-    if (data.elements && data.elements.length > 0) {
-      updateMapMarkers(data.elements, loc);
-    } else {
-      console.warn("No hospitals found nearby via OpenStreetMap within 10km.");
-      // Optional: try one even larger radius or show "No results"
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Overpass API Error");
+
+      const data = await response.json();
+      if (data.elements && data.elements.length > 0) {
+        updateMapMarkers(data.elements, loc);
+
+        // Adjust map zoom based on the successful radius
+        const zoom = radius <= 5000 ? 13 : radius <= 15000 ? 11 : radius <= 30000 ? 10 : 9;
+        if (mapInstance) {
+          mapInstance.setView([loc.lat, loc.lng], zoom);
+        }
+
+        found = true;
+        break;
+      }
+
+      console.warn(`No hospitals found within ${radius / 1000}km, expanding...`);
+    }
+
+    if (!found) {
+      console.error("No hospitals found even after maximum expansion (50km).");
     }
   } catch (error) {
     console.error("Hospital Fetch Error:", error);
