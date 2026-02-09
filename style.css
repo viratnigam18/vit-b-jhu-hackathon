@@ -115,7 +115,7 @@ body {
 /* Header */
 header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
 }
 
@@ -827,20 +827,20 @@ header {
 
 /* ===== User Menu ===== */
 .user-menu {
-    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }
 
-.user-trigger {
+.user-info {
     display: flex;
     align-items: center;
     gap: 10px;
-    cursor: pointer;
 }
 
 .user-email {
     font-size: 14px;
     font-weight: 500;
-    color: #2d3748;
 }
 
 /* Initials circle */
@@ -857,34 +857,21 @@ header {
     font-size: 14px;
 }
 
-/* Dropdown */
-.user-dropdown {
-    position: absolute;
-    right: 0;
-    top: 48px;
+/* Logout button */
+.logout-btn {
+    padding: 8px 16px;
+    border: 1px solid #fed7d7;
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-    padding: 8px;
-    display: none;
-    z-index: 200;
-}
-
-.user-dropdown.show {
-    display: block;
-}
-
-.user-dropdown button {
-    width: 100%;
-    padding: 10px 14px;
-    border: none;
-    background: transparent;
     cursor: pointer;
-    border-radius: 8px;
-    font-size: 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
     color: #e53e3e;
+    transition: 0.2s;
 }
 
-.user-dropdown button:hover {
+.logout-btn:hover {
     background: #fff5f5;
+    border-color: #feb2b2;
+    transform: translateY(-1px);
 }

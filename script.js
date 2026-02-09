@@ -643,31 +643,11 @@ document.addEventListener("DOMContentLoaded", () => {
     .catch(err => console.warn("Tunnel config not found, using last known or empty:", err));
 
   const logoutBtn = document.getElementById("logoutBtn");
-  const trigger = document.getElementById("userTrigger");
-  const dropdown = document.getElementById("userDropdown");
 
   // Logout
   if (logoutBtn) {
     logoutBtn.addEventListener("click", logout);
   }
-
-  // Dropdown toggle
-  if (trigger && dropdown) {
-    trigger.addEventListener("click", () => {
-      dropdown.classList.toggle("show");
-    });
-  }
-
-  // Close dropdown on outside click
-  document.addEventListener("click", (e) => {
-    if (
-      dropdown &&
-      !dropdown.contains(e.target) &&
-      !trigger.contains(e.target)
-    ) {
-      dropdown.classList.remove("show");
-    }
-  });
 
   // Symptom input
   const symptomInput = document.querySelector(".symptom-input input");
