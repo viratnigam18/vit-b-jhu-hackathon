@@ -307,34 +307,53 @@ async function fetchNearbyHospitals(loc) {
 }
 
 function updateMapMarkers(elements, userLoc) {
-  if (!markersLayer) return;
+  if (!markersLayer || !mapInstance) return;
   markersLayer.clearLayers();
 
-  elements.slice(0, 10).forEach((el) => {
+  // Map elements to include distance and coordinates
+  const markersData = elements.map(el => {
     const lat = el.lat || (el.center && el.center.lat);
     const lon = el.lon || (el.center && el.center.lon);
+    return {
+      ...el,
+      lat,
+      lon,
+      dist: calculateDistance(userLoc.lat, userLoc.lng, lat, lon)
+    };
+  }).filter(m => m.lat && m.lon);
 
-    if (lat && lon) {
-      const name = el.tags.name || "Hospital";
-      const address = el.tags["addr:street"] || "Nearby";
+  // Sort by distance
+  markersData.sort((a, b) => a.dist - b.dist);
 
-      // Calculate distance (very rough estimate for display)
-      const dist = calculateDistance(userLoc.lat, userLoc.lng, lat, lon);
+  const group = L.featureGroup();
 
-      const marker = L.circleMarker([lat, lon], {
-        radius: 8,
-        fillColor: "#E53E3E",
-        color: "#fff",
-        weight: 2,
-        opacity: 1,
-        fillOpacity: 0.8
-      }).addTo(markersLayer);
+  markersData.slice(0, 10).forEach((m, i) => {
+    const isNearest = i === 0;
+    const name = m.tags.name || "Hospital";
+    const address = m.tags["addr:street"] || "Nearby";
 
-      marker.bindPopup(`<b>${name}</b><br>${address}<br>Distance: ${dist.toFixed(1)} km`);
+    const marker = L.circleMarker([m.lat, m.lon], {
+      radius: isNearest ? 12 : 8,
+      fillColor: isNearest ? "#E53E3E" : "#718096",
+      color: "#fff",
+      weight: isNearest ? 3 : 2,
+      opacity: 1,
+      fillOpacity: 0.9
+    }).addTo(markersLayer);
 
-      // Also update dashboard UI if needed - but Leaflet usually handles its own interactivity.
+    const label = isNearest ? `<b style="color: #E53E3E;">[NEAREST HOSPITAL]</b><br>` : "";
+    marker.bindPopup(`${label}<b>${name}</b><br>${address}<br>Distance: ${m.dist.toFixed(1)} km`);
+
+    group.addLayer(marker);
+
+    if (isNearest) {
+      setTimeout(() => marker.openPopup(), 500);
     }
   });
+
+  if (markersData.length > 0) {
+    mapInstance.fitBounds(group.getBounds(), { padding: [50, 50] });
+  }
 }
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
