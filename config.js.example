@@ -1,0 +1,10 @@
+/**
+ * API Configuration Example
+ * Copy this file to config.js and fill in your keys.
+ */
+window.CONFIG = {
+    SUPABASE_URL: "YOUR_OBFUSCATED_OR_PLAIN_URL",
+    SUPABASE_ANON_KEY: "YOUR_OBFUSCATED_OR_PLAIN_KEY",
+    OPENROUTER_API_KEY: "YOUR_OBFUSCATED_OR_PLAIN_KEY",
+    WEBHOOK_PATH: "YOUR_OBFUSCATED_OR_PLAIN_PATH"
+};
