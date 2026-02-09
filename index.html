@@ -1,198 +1,277 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AEM Emergency Dashboard</title>
+  <title>LifeLine Emergency Dashboard</title>
 
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 </head>
 
 <body>
-<div class="container">
+  <div class="container">
 
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="logo">
-      <h2>AEM</h2>
-    </div>
-
-    <div class="active-badge">
-      <i class="fa-solid fa-thumbs-up"></i>
-      <span>Dashboard</span>
-    </div>
-
-    <nav>
-      <ul>
-        <li class="active"><a href="#"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
-        <li><a href="#"><i class="fa-solid fa-stethoscope"></i> Symptom Check</a></li>
-        <li><a href="#"><i class="fa-solid fa-map-location-dot"></i> Emergency Map</a></li>
-        <li><a href="#"><i class="fa-solid fa-tower-broadcast"></i> SOS Alerts</a></li>
-        <li><a href="#"><i class="fa-solid fa-clock-rotate-left"></i> History</a></li>
-        <li><a href="#"><i class="fa-solid fa-user"></i> Profile</a></li>
-        <li><a href="#"><i class="fa-solid fa-gear"></i> Settings</a></li>
-      </ul>
-    </nav>
-  </aside>
-
-  <!-- Main Content -->
-  <main class="main-content">
-
-    <!-- Header -->
-    <header>
-
-      <!-- Search -->
-      <div class="search-bar">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" placeholder="Search...">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        <img
+          src="https://blogger.googleusercontent.com/img/a/AVvXsEhHmx0ph3KdIyVrPZCIC1aUvZm3xqMK0baj1hi3xQ7Jzl0hH2RZwSq47cwjacBZOm6BQQKXN1ojBt2r42a6NWCTFQa2snhf-wM7wEFRaRpKBDeVYCUGbGlFdtH6g1PcjJ_RJHLJqM0BShF7muZJeSQkgCo1F60NOIq0gEV5vbhnYju40--KUb9z-NK_Cf84"
+          alt="LifeLine Logo" class="brand-logo">
+        <h2>LifeLine</h2>
       </div>
 
-      <!-- Header Actions -->
-      <div class="header-actions">
-
-        <div class="icon-btn"><i class="fa-solid fa-bell"></i></div>
-        <div class="icon-btn"><i class="fa-regular fa-bell"></i></div>
-
-        <!-- User Menu -->
-        <div class="user-menu">
-          <div class="user-trigger" id="userTrigger">
-            <span id="userInitials" class="initials">U</span>
-            <span id="userEmail" class="user-email"></span>
-          </div>
-
-          <div class="user-dropdown" id="userDropdown">
-            <button id="logoutBtn">Logout</button>
-          </div>
-        </div>
-
+      <div class="active-badge">
+        <span>Dashboard</span>
       </div>
-    </header>
 
-    <!-- Dashboard Grid -->
-    <div class="dashboard-grid">
+      <nav>
+        <ul id="sidebarNav">
+          <li class="nav-item active" data-view="dashboard">
+            <a href="#"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+          </li>
+          <li class="nav-item" data-view="history">
+            <a href="#"><i class="fa-solid fa-clock-rotate-left"></i> History</a>
+          </li>
+          <li class="nav-item" data-view="profile">
+            <a href="#"><i class="fa-solid fa-user"></i> Profile</a>
+          </li>
+          <li class="nav-item" data-view="settings">
+            <a href="#"><i class="fa-solid fa-gear"></i> Settings</a>
+          </li>
+        </ul>
+      </nav>
+    </aside>
 
-      <!-- Column 1 -->
-      <div class="grid-col col-1">
+    <!-- Main Content -->
+    <main class="main-content">
 
-        <div class="card symptom-card">
-          <h3>Symptom Checker</h3>
-          <div class="symptom-input">
-            <i class="fa-solid fa-microphone"></i>
-            <input type="text" placeholder="Chest pain, shortness of breath">
-          </div>
-        </div>
+      <!-- Header -->
+      <header>
 
-        <div class="card severity-card">
-          <h3>Emergency Severity</h3>
-          <div class="gauge-container">
-            <div class="gauge">
-              <i class="fa-solid fa-heart-pulse"></i>
-              <span class="status">HIGH</span>
+        <!-- Search -->
+
+        <!-- Header Actions -->
+        <div class="header-actions">
+
+          <!-- User Menu -->
+          <div class="user-menu">
+            <div class="user-info">
+              <span id="userInitials" class="initials">U</span>
+              <span id="userEmail" class="user-email"></span>
             </div>
-            <i class="fa-solid fa-triangle-exclamation warning-icon"></i>
+            <button id="logoutBtn" class="logout-btn">Logout</button>
           </div>
+
         </div>
+      </header>
 
-        <div class="card ai-card">
-          <h3>AI Recommendation</h3>
-          <ul>
-            <li>1. Call now</li>
-            <li>2. Share Location</li>
-            <li>• Stay Calm & Immobilize</li>
-          </ul>
-        </div>
+      <!-- Dashboard Grid -->
+      <div class="dashboard-grid" id="mainDashboardGrid">
 
-        <div class="card quick-action-card">
-          <h3>Quick Action</h3>
-          <button class="action-btn">Call Ambulance</button>
-          <button class="action-btn">Share Location</button>
-          <button class="action-btn primary">Contact Emergency</button>
-        </div>
+        <!-- Column 1 -->
+        <div class="grid-col col-1" id="col-symptoms">
 
-      </div>
-
-      <!-- Column 2 -->
-      <div class="grid-col col-2">
-
-        <div class="card map-card">
-          <div class="map-header">
-            <h3>Interactive Hospital Locator Map</h3>
+          <div class="card symptom-card">
+            <h3>Symptom Checker</h3>
+            <div class="symptom-input">
+              <i class="fa-solid fa-microphone"></i>
+              <input type="text" placeholder="Chest pain, shortness of breath">
+            </div>
           </div>
-          <div class="map-visual">
-            <div class="map-point p1"><i class="fa-solid fa-plus"></i></div>
-            <div class="map-point p2"><i class="fa-solid fa-plus"></i></div>
-            <div class="map-point p3"><i class="fa-solid fa-plus"></i></div>
-            <div class="map-point p4"><i class="fa-solid fa-plus"></i></div>
 
-            <div class="map-point active-hospital">
-              <i class="fa-solid fa-square-plus"></i>
-              <div class="hospital-tooltip">
-                <strong>St. Mary Hospital</strong>
-                <span>2.5 miles</span>
-                <div class="hospital-details">
-                  <span>Emergency Room</span>
-                  <span>ETA: 7 mins</span>
+          <div class="card severity-card">
+            <h3>Emergency Severity</h3>
+            <div class="gauge-container">
+              <div class="gauge">
+                <i class="fa-solid fa-heart-pulse"></i>
+                <span class="status">HIGH</span>
+              </div>
+              <i class="fa-solid fa-triangle-exclamation warning-icon"></i>
+            </div>
+          </div>
+
+          <div class="card ai-card">
+            <h3>AI Recommendation</h3>
+            <ul id="aiRecommendationList">
+              <li>1. Call now</li>
+              <li>2. Share Location</li>
+              <li>• Stay Calm & Immobilize</li>
+            </ul>
+          </div>
+
+
+          <div class="card quick-action-card">
+            <h3>Quick Action</h3>
+            <button class="action-btn primary" id="callAmbulanceBtn"
+              style="width: 100%; height: 60px; font-size: 1.1rem;">
+              <i class="fa-solid fa-truck-medical"></i> Call Ambulance
+            </button>
+          </div>
+
+
+        </div>
+
+        <!-- Column 2 -->
+        <div class="grid-col col-2" id="col-map">
+
+          <div class="card map-card">
+            <div class="map-header">
+              <h3>Interactive Hospital Locator Map</h3>
+            </div>
+            <div class="map-visual" id="map-container"></div>
+          </div>
+
+          <div class="card filter-sos-card">
+            <div class="filters" id="dynamicFilters">
+              <div class="filter-group">
+                <label>Identified Condition</label>
+                <div class="tags" id="conditionTags">
+                  <span class="tag"><span class="dot gray"></span> Waiting for analysis...</span>
+                </div>
+              </div>
+              <div class="filter-group">
+                <label>Recommended Filters</label>
+                <div class="tags" id="recommendedFilters">
+                  <span class="tag"><span class="dot teal"></span> Emergency Room</span>
+                  <span class="tag"><span class="dot green"></span> Cardiology</span>
                 </div>
               </div>
             </div>
+
+            <div class="sos-wrapper">
+              <button class="sos-btn">
+                SOS
+                <span>Emergency</span>
+              </button>
+
+            </div>
           </div>
+
+          <div class="card remedy-card" id="remedyCard">
+            <h3>Medicine & Remedies</h3>
+            <div class="remedy-section">
+              <h4><i class="fa-solid fa-pills"></i> Suggested Medicines</h4>
+              <ul id="medicineList">
+                <li class="placeholder">Waiting for analysis...</li>
+              </ul>
+            </div>
+            <div class="remedy-section">
+              <h4><i class="fa-solid fa-house-medical"></i> Home Remedies</h4>
+              <ul id="homeRemedyList">
+                <li class="placeholder">Waiting for analysis...</li>
+              </ul>
+            </div>
+            <div class="medical-disclaimer">
+              <i class="fa-solid fa-circle-warning"></i>
+              <span><strong>Disclaimer:</strong> AI suggestions are NOT medical advice. Consult a professional before
+                use.</span>
+            </div>
+          </div>
+
         </div>
 
-        <div class="card filter-sos-card">
-          <div class="filters">
-            <div class="filter-group">
-              <label>Filters</label>
-              <div class="tags">
-                <span class="tag"><span class="dot teal"></span> Emergency Room</span>
-                <span class="tag"><span class="dot green"></span> Cardiology</span>
-              </div>
-            </div>
-            <div class="filter-group">
-              <label>Filters</label>
-              <div class="tags">
-                <span class="tag"><span class="dot gray"></span> Endocrinology</span>
-                <span class="tag"><span class="dot gray"></span> Pediatrics</span>
-              </div>
+        <!-- Column 3 -->
+        <div class="grid-col col-3" id="col-history">
+          <div class="card activity-card">
+            <h3>Recent Activity / Medical History</h3>
+            <!-- Log items will be loaded dynamically here -->
+          </div>
+
+          <div class="card directory-card">
+            <h3>Nearby Hospital Directory</h3>
+            <div id="hospitalList" class="hospital-list">
+              <!-- Hospital items will be loaded dynamically here -->
+              <p style="padding: 10px; font-size: 0.85rem; color: var(--text-secondary);">Perform a search to see nearby
+                hospitals.</p>
             </div>
           </div>
 
-          <div class="sos-wrapper">
-            <button class="sos-btn">
-              SOS
-              <span>Emergency</span>
+          <div class="card telemedicine-card">
+            <div class="telemed-header">
+              <h3>Telemedicine</h3>
+              <div class="online-status">
+                <span class="pulse-dot"></span>
+                <span id="doctorsOnlineCount">12</span> Doctors Online
+              </div>
+            </div>
+            <p class="telemed-desc">Connect with an expert human doctor instantly via video call.</p>
+            <button class="action-btn" id="consultNowBtn">
+              <i class="fa-solid fa-video"></i> Consult Now
             </button>
-            
+            <div class="wait-time">
+              <i class="fa-solid fa-clock"></i> Est. wait: <span id="estWaitTime">2 mins</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 4: Profile (Hidden by default) -->
+        <div class="grid-col col-profile hidden" id="col-profile">
+          <div class="card profile-card">
+            <h3>Medical Profile</h3>
+            <form id="profileForm">
+              <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="prof-name" placeholder="John Doe">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Date of Birth</label>
+                  <input type="date" id="prof-dob">
+                </div>
+                <div class="form-group">
+                  <label>Blood Group</label>
+                  <select id="prof-blood">
+                    <option value="">Select</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Emergency Contact Name</label>
+                <input type="text" id="prof-ec-name" placeholder="Guardian Name">
+              </div>
+              <div class="form-group">
+                <label>Emergency Contact Phone</label>
+                <input type="tel" id="prof-ec-phone" placeholder="+1 234 567 890">
+              </div>
+              <div class="form-group">
+                <label>Medical Conditions</label>
+                <textarea id="prof-conditions" placeholder="Diabetes, Hypertension..."></textarea>
+              </div>
+              <div class="form-group">
+                <label>Allergies</label>
+                <textarea id="prof-allergy" placeholder="Peanuts, Penicillin..."></textarea>
+              </div>
+              <button type="submit" class="action-btn primary" id="saveProfileBtn">Save Profile</button>
+            </form>
+            <div id="profileStatus" style="margin-top: 10px; font-size: 0.85rem;"></div>
           </div>
         </div>
 
       </div>
+    </main>
+  </div>
 
-      <!-- Column 3 -->
-      <div class="grid-col col-3">
-
-        <div class="card activity-card">
-          <h3>Recent Activity / Medical History</h3>
-          <div class="activity-item">
-            <div class="date">Jan 30 2026 <span class="active-status">Vitals</span></div>
-            <p>Chest discomfort evaluation</p>
-          </div>
-          <div class="activity-item">
-            <div class="date">July 9 2023 <span class="active-status">Vitals</span></div>
-            <p>Allergies</p>
-          </div>
-        </div>
-
-      </div>
-
-    </div>
-  </main>
-</div>
-
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="script.js"></script>
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="crypto.js"></script>
+  <script src="config.js"></script>
+  <script src="script.js"></script>
 
 </body>
+
 </html>

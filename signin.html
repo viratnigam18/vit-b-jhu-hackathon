@@ -1,51 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<title>LifeLine Login</title>
-<link rel="stylesheet" href="signin.css">
+  <meta charset="UTF-8">
+  <title>LifeLine Login</title>
+  <link rel="stylesheet" href="signin.css">
 </head>
 
 <body>
 
-<div class="bg"></div>
+  <div class="bg"></div>
 
-<div class="card">
+  <div class="card">
 
-<div class="left">
-  <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgWtOFSyVgmA-eA3tZdSNYAlSZ4H_W1yZJIv7cW5vjMVoJdPMrWiHJFG6VxKEVq7cjS2-7xotCDI5AH0JbNKOgx_HOUQORc1nkaqLgO18r4K_mmoS0QwgwkA2DuDdQt4fXf80QIys_B9vJEnG4N2olagvYRYAdcaBt2yfPZU3QjWG-cpI6FiL8fpLmMZcFM/s1080/medical_art.jpg.jpeg" class="art">
-</div>
-
-
-  <div class="right">
-
-    <div class="logo">
-        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEhHmx0ph3KdIyVrPZCIC1aUvZm3xqMK0baj1hi3xQ7Jzl0hH2RZwSq47cwjacBZOm6BQQKXN1ojBt2r42a6NWCTFQa2snhf-wM7wEFRaRpKBDeVYCUGbGlFdtH6g1PcjJ_RJHLJqM0BShF7muZJeSQkgCo1F60NOIq0gEV5vbhnYju40--KUb9z-NK_Cf84" alt="Logo">
+    <div class="left">
+      <img
+        src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgWtOFSyVgmA-eA3tZdSNYAlSZ4H_W1yZJIv7cW5vjMVoJdPMrWiHJFG6VxKEVq7cjS2-7xotCDI5AH0JbNKOgx_HOUQORc1nkaqLgO18r4K_mmoS0QwgwkA2DuDdQt4fXf80QIys_B9vJEnG4N2olagvYRYAdcaBt2yfPZU3QjWG-cpI6FiL8fpLmMZcFM/s1080/medical_art.jpg.jpeg"
+        class="art">
     </div>
 
-    <h2>LifeLine</h2>
 
-    <h1>Welcome. Your health,<br>our priority.</h1>
+    <div class="right">
 
-    <input type="email" id="email" placeholder="Email / Phone Number">
-    <input type="password" id="password" placeholder="Password">
+      <div class="logo">
+        <img
+          src="https://blogger.googleusercontent.com/img/a/AVvXsEhHmx0ph3KdIyVrPZCIC1aUvZm3xqMK0baj1hi3xQ7Jzl0hH2RZwSq47cwjacBZOm6BQQKXN1ojBt2r42a6NWCTFQa2snhf-wM7wEFRaRpKBDeVYCUGbGlFdtH6g1PcjJ_RJHLJqM0BShF7muZJeSQkgCo1F60NOIq0gEV5vbhnYju40--KUb9z-NK_Cf84"
+          alt="Logo">
+      </div>
 
-    <div class="row">
-      <a href="#" onclick="forgotPassword()">Forgot password?</a>
+      <h2>LifeLine</h2>
 
-      <a href="signup.html" class="signup">Sign up / Create account</a>
+      <h1>Welcome. Your health,<br>our priority.</h1>
+
+      <input type="email" id="email" placeholder="Email / Phone Number">
+      <input type="password" id="password" placeholder="Password">
+
+      <div class="row">
+        <a href="#" onclick="forgotPassword()">Forgot password?</a>
+
+        <a href="signup.html" class="signup">Sign up / Create account</a>
+      </div>
+
+      <button onclick="login()">Login</button>
+
+      <p id="status"></p>
+
     </div>
-
-    <button onclick="login()">Login</button>
-
-    <p id="status"></p>
 
   </div>
 
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="signin.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="crypto.js"></script>
+  <script src="signin.js"></script>
 
 </body>
+
 </html>

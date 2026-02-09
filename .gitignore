@@ -1,0 +1,12 @@
+# Local configuration
+config.js
+
+# Dependencies
+node_modules/
+.env
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.log
