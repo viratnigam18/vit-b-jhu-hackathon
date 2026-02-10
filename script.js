@@ -18,6 +18,272 @@ const WEBHOOK_PATH = deobfuscate(window.CONFIG.WEBHOOK_PATH); // "/webhook/sos"
 
 // State to store last AI analysis for SOS
 let lastAnalysisResult = null;
+let currentLanguage = localStorage.getItem("lifeline_lang") || "EN";
+
+// ===============================
+// Multi-Language Support
+// ===============================
+const TRANSLATIONS = {
+  EN: {
+    "logout": "Logout",
+    "nav-dashboard": "Dashboard",
+    "nav-history": "History",
+    "nav-profile": "Profile",
+    "nav-settings": "Settings",
+    "card-symptoms": "Symptom Checker",
+    "placeholder-symptoms": "Chest pain, shortness of breath",
+    "card-severity": "Emergency Severity",
+    "status-high": "HIGH",
+    "card-ai": "AI Recommendation",
+    "loading-analysis": "Waiting for analysis...",
+    "card-quick-action": "Quick Action",
+    "btn-ambulance": "Call Ambulance",
+    "card-map": "Interactive Hospital Locator Map",
+    "label-condition": "Identified Condition",
+    "label-recommended": "Recommended Filters",
+    "sos-main": "SOS",
+    "sos-sub": "Emergency",
+    "card-remedy": "Medicine & Remedies",
+    "label-medicines": "Suggested Medicines",
+    "label-remedies": "Home Remedies",
+    "disclaimer": "<strong>Disclaimer:</strong> AI suggestions are NOT medical advice. Consult a professional before use.",
+    "card-history": "Recent Activity / Medical History",
+    "card-directory": "Nearby Hospital Directory",
+    "placeholder-hospital": "Perform a search to see nearby hospitals.",
+    "card-telemed": "Telemedicine",
+    "doctors-online": "Doctors Online",
+    "telemed-desc": "Instantly connect with expert doctors available online.",
+    "loading-doctors": "Loading available doctors...",
+    "card-profile": "Medical Profile",
+    "prof-label-name": "Full Name",
+    "prof-label-dob": "Date of Birth",
+    "prof-label-blood": "Blood Group",
+    "prof-label-ec-name": "Emergency Contact Name",
+    "prof-label-ec-phone": "Emergency Contact Phone",
+    "prof-label-conditions": "Medical Conditions",
+    "prof-label-allergy": "Allergies",
+    "btn-save-profile": "Save Profile",
+    "btn-lang": "HI",
+    "chat-online": "ONLINE",
+    "chat-title": "Dr. LifeLine",
+    "chat-status": "AI Assistant",
+    "chat-welcome": "Hello! I am your AI medical assistant. How can I help you today?",
+    "chat-placeholder": "Ask me anything...",
+    "chat-error": "I'm having trouble connecting. Please try again.",
+    "hist-ai-analysis": "AI Analysis",
+    "hist-sos-alert": "SOS ALERT",
+    "hist-ambulance-call": "AMBULANCE CALLED",
+    "hist-no-activity": "No recent activity found.",
+    "hist-symptoms": "Symptoms"
+  },
+  HI: {
+    "logout": "लॉगआउट",
+    "nav-dashboard": "डैशबोर्ड",
+    "nav-history": "इतिहास",
+    "nav-profile": "प्रोफ़ाइल",
+    "nav-settings": "सेटिंग्स",
+    "card-symptoms": "लक्षण जांचक",
+    "placeholder-symptoms": "सीने में दर्द, सांस की तकलीफ",
+    "card-severity": "आपातकालीन गंभीरता",
+    "status-high": "उच्च",
+    "card-ai": "AI अनुशंसा",
+    "loading-analysis": "विश्लेषण की प्रतीक्षा की जा रही है...",
+    "card-quick-action": "त्वरित कार्रवाई",
+    "btn-ambulance": "एम्बुलेंस बुलाओ",
+    "card-map": "इंटरैक्टिव अस्पताल लोकेटर मैप",
+    "label-condition": "पहचानी गई स्थिति",
+    "label-recommended": "अनुशंसित फ़िल्टर",
+    "sos-main": "SOS",
+    "sos-sub": "आपातकालीन",
+    "card-remedy": "दवा और उपचार",
+    "label-medicines": "सुझाई गई दवाएं",
+    "label-remedies": "घरेलू उपचार",
+    "disclaimer": "<strong>अस्वीकरण:</strong> AI सुझाव चिकित्सा सलाह नहीं हैं। उपयोग करने से पहले किसी पेशेवर से परामर्श लें।",
+    "card-history": "हाल की गतिविधि / चिकित्सा इतिहास",
+    "card-directory": "नजदीकी अस्पताल निर्देशिका",
+    "placeholder-hospital": "नजदीकी अस्पतालों को देखने के लिए खोज करें।",
+    "card-telemed": "टेलीमेडिसिन",
+    "doctors-online": "डॉक्टर ऑनलाइन",
+    "telemed-desc": "ऑनलाइन उपलब्ध विशेषज्ञ डॉक्टरों से तुरंत जुड़ें।",
+    "loading-doctors": "उपलब्ध डॉक्टरों को लोड किया जा रहा है...",
+    "card-profile": "चिकित्सा प्रोफ़ाइल",
+    "prof-label-name": "पूरा नाम",
+    "prof-label-dob": "जन्म तिथि",
+    "prof-label-blood": "रक्त समूह",
+    "prof-label-ec-name": "आपातकालीन संपर्क नाम",
+    "prof-label-ec-phone": "आपातकालीन संपर्क फोन",
+    "prof-label-conditions": "चिकित्सा स्थितियां",
+    "prof-label-allergy": "एलर्जी",
+    "btn-save-profile": "प्रोफ़ाइल सहेजें",
+    "btn-lang": "EN",
+    "chat-online": "ऑनलाइन",
+    "chat-title": "डॉ. लाइफलाइन",
+    "chat-status": "AI सहायक",
+    "chat-welcome": "नमस्ते! मैं आपका AI चिकित्सा सहायक हूं। मैं आज आपकी क्या मदद कर सकता हूँ?",
+    "chat-placeholder": "मुझसे कुछ भी पूछें...",
+    "chat-error": "मुझे जुड़ने में समस्या हो रही है। कृपया पुनः प्रयास करें।",
+    "hist-ai-analysis": "AI विश्लेषण",
+    "hist-sos-alert": "SOS अलर्ट",
+    "hist-ambulance-call": "एम्बुलेंस बुलाई गई",
+    "hist-no-activity": "कोई हालिया गतिविधि नहीं मिली।",
+    "hist-symptoms": "लक्षण"
+  }
+};
+
+// ===============================
+// AI Chatbot Logic
+// ===============================
+let chatHistory = [];
+
+function initChatbot() {
+  const chatBtn = document.getElementById("chatBtn");
+  const chatContainer = document.getElementById("chatContainer");
+  const closeChat = document.getElementById("closeChat");
+  const chatInput = document.getElementById("chatInput");
+  const sendChatBtn = document.getElementById("sendChatBtn");
+
+  chatBtn.addEventListener("click", () => {
+    chatContainer.classList.toggle("hidden");
+    if (!chatContainer.classList.contains("hidden")) {
+      chatInput.focus();
+    }
+  });
+
+  closeChat.addEventListener("click", () => {
+    chatContainer.classList.add("hidden");
+  });
+
+  const handleSend = () => {
+    const text = chatInput.value.trim();
+    if (text) {
+      appendChatMessage("user", text);
+      chatInput.value = "";
+      sendToAIChat(text);
+    }
+  };
+
+  sendChatBtn.addEventListener("click", handleSend);
+  chatInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") handleSend();
+  });
+}
+
+function appendChatMessage(role, text) {
+  const container = document.getElementById("chatMessages");
+  if (!container) return;
+
+  const msgDiv = document.createElement("div");
+  msgDiv.className = `message ${role === "user" ? "user-msg" : "ai-msg"}`;
+
+  const content = `
+    <div class="msg-bubble">
+      <p>${text}</p>
+    </div>`;
+
+  msgDiv.innerHTML = content;
+  container.appendChild(msgDiv);
+  container.scrollTop = container.scrollHeight;
+
+  // Add to history
+  chatHistory.push({ role: role === "user" ? "user" : "assistant", content: text });
+  if (chatHistory.length > 10) chatHistory.shift();
+}
+
+async function sendToAIChat(message) {
+  const container = document.getElementById("chatMessages");
+  const sendBtn = document.getElementById("sendChatBtn");
+
+  // Disable and show typing
+  sendBtn.disabled = true;
+  const typingDiv = document.createElement("div");
+  typingDiv.className = "message ai-msg typing-indicator";
+  typingDiv.innerHTML = `
+    <div class="msg-bubble">
+      <div class="typing-dots">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+    </div>`;
+  container.appendChild(typingDiv);
+  container.scrollTop = container.scrollHeight;
+
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": window.location.origin,
+        "X-Title": "LifeLine Emergency Dashboard"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: `You are Dr. LifeLine, a helpful and empathetic AI medical assistant. 
+            Keep your answers concise, practical, and empathetic. 
+            If it's a critical emergency, always advise calling an ambulance. 
+            Respond in ${currentLanguage === "HI" ? "Hindi" : "English"}.`
+          },
+          ...chatHistory
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || "API request failed");
+    }
+
+    const data = await response.json();
+    const aiText = data.choices[0].message.content;
+
+    // Remove typing indicator and add response
+    if (typingDiv.parentNode) container.removeChild(typingDiv);
+    appendChatMessage("ai", aiText);
+
+  } catch (error) {
+    console.error("AI Chat Error:", error);
+    if (typingDiv.parentNode) container.removeChild(typingDiv);
+    appendChatMessage("assistant", TRANSLATIONS[currentLanguage]["chat-error"]);
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+function setLanguage(lang) {
+  currentLanguage = lang;
+  localStorage.setItem("lifeline_lang", lang);
+
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (TRANSLATIONS[lang][key]) {
+      el.innerHTML = TRANSLATIONS[lang][key];
+    }
+  });
+
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+    const key = el.getAttribute("data-i18n-placeholder");
+    if (TRANSLATIONS[lang][key]) {
+      el.placeholder = TRANSLATIONS[lang][key];
+    }
+  });
+
+  const langLabel = document.getElementById("currentLangLabel");
+  if (langLabel) {
+    langLabel.textContent = TRANSLATIONS[lang]["btn-lang"];
+  }
+
+  // Refresh dynamic parts if possible
+  if (typeof populateDoctors === 'function') populateDoctors();
+}
+
+function toggleLanguage() {
+  const newLang = currentLanguage === "EN" ? "HI" : "EN";
+  setLanguage(newLang);
+}
 
 // ===============================
 // Protect dashboard
@@ -119,7 +385,9 @@ async function runSymptomCheck(symptoms) {
         messages: [
           {
             role: "system",
-            content: "You are a medical emergency assistant. Analyze the symptoms and return a JSON object with: 'condition' (a short disease name), 'severity' (HIGH, MEDIUM, LOW), 'recommendations' (an array of 3 concise strings), 'medicines' (an array of 2-3 safe OTC suggestions or 'Consult first'), and 'home_remedies' (an array of 2-3 simple home fixes). Only return JSON."
+            content: `You are a medical emergency assistant. Analyze the symptoms and return a JSON object with: 'condition' (a short disease name), 'severity' (HIGH, MEDIUM, LOW), 'recommendations' (an array of 3 concise strings), 'medicines' (an array of 2-3 safe OTC suggestions or 'Consult first'), and 'home_remedies' (an array of 2-3 simple home fixes). 
+            
+            IMPORTANT: All text content (condition, recommendations, medicines, home_remedies) MUST be in ${currentLanguage === "HI" ? "Hindi" : "English"}. Only return JSON.`
           },
           {
             role: "user",
@@ -204,17 +472,24 @@ async function runSymptomCheck(symptoms) {
     if (recommendedFilters) {
       const condition = lastAnalysisResult.condition.toLowerCase();
       let tagsHtml = `<span class="tag"><span class="dot teal"></span> Emergency Room</span>`;
+      let detectedSpecialty = "General Medicine";
 
       if (condition.includes("heart") || condition.includes("cardiac") || condition.includes("chest")) {
         tagsHtml += `<span class="tag"><span class="dot green"></span> Cardiology</span>`;
+        detectedSpecialty = "Cardiology";
       } else if (condition.includes("child") || condition.includes("pediatric")) {
         tagsHtml += `<span class="tag"><span class="dot green"></span> Pediatrics</span>`;
+        detectedSpecialty = "Pediatrics";
       } else if (condition.includes("hormone") || condition.includes("diabetes") || condition.includes("thyroid")) {
         tagsHtml += `<span class="tag"><span class="dot green"></span> Endocrinology</span>`;
+        detectedSpecialty = "Endocrinology";
       } else {
         tagsHtml += `<span class="tag"><span class="dot green"></span> General Medicine</span>`;
       }
       recommendedFilters.innerHTML = tagsHtml;
+
+      // Update Telemedicine doctors based on detected specialty
+      populateDoctors(detectedSpecialty);
     }
 
     // Update AI recommendations
@@ -478,7 +753,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 // ===============================
 // Recent Activity (Database Integration)
 // ===============================
-async function loadRecentActivity() {
+async function loadRecentActivity(limit = 3, isDetailed = false) {
   const activityCard = document.querySelector(".activity-card");
   if (!activityCard) return;
 
@@ -486,27 +761,26 @@ async function loadRecentActivity() {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return;
 
-    // Fetch latest 5 activity logs
+    // Fetch latest 3 activity logs for a "short" dashboard history
     const { data: logs, error } = await supabaseClient
       .from('emergency_logs')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(3);
+      .limit(limit);
 
     if (error) throw error;
 
-    // Remove old items but keep h3
     const h3 = activityCard.querySelector("h3");
     activityCard.innerHTML = "";
-    activityCard.appendChild(h3);
+    if (h3) activityCard.appendChild(h3);
 
     if (!logs || logs.length === 0) {
       const p = document.createElement("p");
       p.style.padding = "10px";
       p.style.fontSize = "0.85rem";
       p.style.color = "var(--text-secondary)";
-      p.textContent = "No recent activity found.";
+      p.textContent = TRANSLATIONS[currentLanguage]["hist-no-activity"];
       activityCard.appendChild(p);
       return;
     }
@@ -516,17 +790,36 @@ async function loadRecentActivity() {
       item.className = "activity-item";
 
       const date = new Date(log.created_at);
-      const formattedDate = date.toLocaleDateString('en-US', {
+      const formattedDate = date.toLocaleDateString(currentLanguage === "HI" ? "hi-IN" : "en-US", {
         month: 'short',
         day: 'numeric',
-        year: 'numeric'
+        hour: '2-digit',
+        minute: '2-digit'
       });
 
-      const label = log.type === 'sos' ? 'SOS ALERT' : 'AI Analysis';
+      const isSOS = log.type === 'sos';
+      const isAmbulance = log.type === 'ambulance_call';
+
+      let typeLabel = TRANSLATIONS[currentLanguage]["hist-ai-analysis"];
+      if (isSOS) typeLabel = TRANSLATIONS[currentLanguage]["hist-sos-alert"];
+      if (isAmbulance) typeLabel = TRANSLATIONS[currentLanguage]["hist-ambulance-call"];
+
+      const severity = log.severity || "LOW";
+      const severityClass = (isSOS || isAmbulance) ? "type-sos" : `severity-${severity.toLowerCase()}`;
 
       item.innerHTML = `
-        <div class="date">${formattedDate} <span class="active-status" style="${log.type === 'sos' ? 'color: #E53E3E;' : ''}">${label}</span></div>
-        <p>${log.condition || "Emergency Situation"}</p>
+        <div class="date">
+          <span>${formattedDate}</span>
+          <span class="severity-badge ${severityClass}">${typeLabel}</span>
+        </div>
+        <div class="condition-row">
+          <h4>${log.condition || "Emergency Situation"}</h4>
+          ${!isSOS && !isAmbulance && log.severity ? `<span class="severity-badge ${severityClass}">${severity}</span>` : ""}
+        </div>
+        ${isDetailed && log.symptoms ? `
+          <p class="symptoms-summary">
+            <strong>${TRANSLATIONS[currentLanguage]["hist-symptoms"]}:</strong> ${log.symptoms}
+          </p>` : ""}
       `;
       activityCard.appendChild(item);
     });
@@ -539,6 +832,143 @@ async function loadRecentActivity() {
 // ===============================
 // Navigation
 // ===============================
+// ===============================
+// Voice SOS Trigger Logic
+// ===============================
+let voiceStrikeCount = 0;
+let strikeResetTimeout = null;
+let isVoiceMonitoring = false;
+let recognition = null;
+
+function initVoiceSOS() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const voiceToggleBtn = document.getElementById("voiceToggleBtn");
+  const voiceMonitor = document.getElementById("voiceMonitor");
+  const voiceStatus = document.getElementById("voiceStatus");
+
+  if (!SpeechRecognition || !voiceToggleBtn || !voiceMonitor) {
+    if (voiceMonitor) voiceMonitor.style.display = "none";
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  recognition.lang = currentLanguage === "HI" ? "hi-IN" : "en-US";
+
+  recognition.onstart = () => {
+    isVoiceMonitoring = true;
+    voiceMonitor.classList.add("listening");
+    voiceStatus.textContent = currentLanguage === "HI" ? "सक्रिय" : "ON";
+    voiceToggleBtn.querySelector("i").className = "fa-solid fa-microphone";
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+    console.log("Heard:", transcript);
+
+    const keywords = ["help", "ambulance", "emergency", "bachao", "bacao", "बचाओ", "मदद"];
+
+    if (keywords.some(k => transcript.includes(k))) {
+      handleVoiceStrike();
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.warn("Speech recognition error", event.error);
+    if (event.error === 'not-allowed') {
+      stopVoiceMonitoring();
+      alert("Microphone permission is required for Voice SOS.");
+    }
+  };
+
+  recognition.onend = () => {
+    // Restart recognition only if it was supposed to be running
+    if (isVoiceMonitoring) {
+      recognition.start();
+    }
+  };
+
+  voiceToggleBtn.addEventListener("click", () => {
+    if (isVoiceMonitoring) {
+      stopVoiceMonitoring();
+    } else {
+      startVoiceMonitoring();
+    }
+  });
+}
+
+function startVoiceMonitoring() {
+  if (recognition) {
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("Start error:", e);
+    }
+  }
+}
+
+function stopVoiceMonitoring() {
+  isVoiceMonitoring = false;
+  if (recognition) {
+    recognition.stop();
+  }
+  const voiceMonitor = document.getElementById("voiceMonitor");
+  const voiceStatus = document.getElementById("voiceStatus");
+  const voiceToggleBtn = document.getElementById("voiceToggleBtn");
+
+  if (voiceMonitor) voiceMonitor.classList.remove("listening");
+  if (voiceStatus) voiceStatus.textContent = currentLanguage === "HI" ? "बंद" : "OFF";
+  if (voiceToggleBtn) voiceToggleBtn.querySelector("i").className = "fa-solid fa-power-off";
+}
+
+function handleVoiceStrike() {
+  voiceStrikeCount++;
+
+  const overlay = document.getElementById("voiceStrikeOverlay");
+  overlay.classList.remove("hidden");
+
+  // Highlight strike circles
+  for (let i = 1; i <= 3; i++) {
+    const circle = document.getElementById(`strike-${i}`);
+    if (i <= voiceStrikeCount) {
+      circle.classList.add("active");
+    }
+  }
+
+  // Reset timeout
+  if (strikeResetTimeout) clearTimeout(strikeResetTimeout);
+
+  if (voiceStrikeCount >= 3) {
+    // TRIGGER SOS
+    document.getElementById("strikeMessage").textContent = currentLanguage === "HI" ? "आपातकालीन स्थिति सक्रिय!" : "EMERGENCY TRIGGERED!";
+    setTimeout(() => {
+      overlay.classList.add("hidden");
+      resetVoiceStrikes();
+      triggerSOS(); // Existing SOS function
+    }, 1500);
+  } else {
+    // Reset strike count after 5 seconds of silence
+    strikeResetTimeout = setTimeout(() => {
+      overlay.classList.add("hidden");
+      resetVoiceStrikes();
+    }, 5000);
+  }
+}
+
+function resetVoiceStrikes() {
+  voiceStrikeCount = 0;
+  for (let i = 1; i <= 3; i++) {
+    document.getElementById(`strike-${i}`).classList.remove("active");
+  }
+}
+
+async function triggerSOS() {
+  // Use existing SOS button logic
+  const sosBtn = document.getElementById("sosBtn");
+  if (sosBtn) sosBtn.click();
+}
+
 function initNavigation() {
   const sidebarNav = document.getElementById("sidebarNav");
   if (!sidebarNav) return;
@@ -562,6 +992,8 @@ function switchView(viewName) {
   const colHistory = document.getElementById("col-history");
   const colProfile = document.getElementById("col-profile");
   const navItems = document.querySelectorAll(".nav-item");
+  const directoryCard = document.getElementById("directoryCard");
+  const telemedCard = document.getElementById("telemedCard");
 
   if (!grid || !colSymptoms || !colMap || !colHistory || !colProfile) return;
 
@@ -580,10 +1012,13 @@ function switchView(viewName) {
   colMap.classList.remove("hidden");
   colHistory.classList.remove("hidden");
   colProfile.classList.add("hidden");
+  if (directoryCard) directoryCard.classList.remove("hidden");
+  if (telemedCard) telemedCard.classList.remove("hidden");
 
   switch (viewName) {
     case "dashboard":
       // Show all (default)
+      loadRecentActivity(3, false);
       break;
     case "symptoms":
       grid.classList.add("single-col");
@@ -606,6 +1041,9 @@ function switchView(viewName) {
       grid.classList.add("single-col");
       colSymptoms.classList.add("hidden");
       colMap.classList.add("hidden");
+      if (directoryCard) directoryCard.classList.add("hidden");
+      if (telemedCard) telemedCard.classList.add("hidden");
+      loadRecentActivity(50, true);
       break;
     case "profile":
       grid.classList.add("single-col");
@@ -695,34 +1133,78 @@ async function saveProfile(e) {
 // ===============================
 // Telemedicine Simulation
 // ===============================
+const MOCK_DOCTORS = [
+  { name: "Dr. Ananya Iyer", specialty: "Cardiology", phone: "+91 98765 43210" },
+  { name: "Dr. Rajesh Mehra", specialty: "Cardiology", phone: "+91 98123 45678" },
+  { name: "Dr. Vikram Sethi", specialty: "General Medicine", phone: "+91 99887 76655" },
+  { name: "Dr. Sneha Kapoor", specialty: "Pediatrics", phone: "+91 97654 32109" },
+  { name: "Dr. Rohan Varma", specialty: "Endocrinology", phone: "+91 91234 56789" },
+  { name: "Dr. Kavita Rao", specialty: "General Medicine", phone: "+91 90000 11111" },
+  { name: "Dr. Amit Sharma", specialty: "Pediatrics", phone: "+91 98888 77777" },
+  { name: "Dr. Meera Nair", specialty: "Endocrinology", phone: "+91 95555 44444" }
+];
+
 function initTelemedicine() {
   const doctorCountEl = document.getElementById("doctorsOnlineCount");
-  const waitTimeEl = document.getElementById("estWaitTime");
-  const consultBtn = document.getElementById("consultNowBtn");
+  const doctorListEl = document.getElementById("doctorList");
 
-  if (!doctorCountEl || !waitTimeEl || !consultBtn) return;
+  if (!doctorCountEl || !doctorListEl) return;
 
   // Simulate dynamic doctor count
   setInterval(() => {
     const randomCount = Math.floor(Math.random() * 5) + 10; // 10-15
-    const randomWait = Math.floor(Math.random() * 3) + 1;  // 1-4 mins
     doctorCountEl.textContent = randomCount;
-    waitTimeEl.textContent = `${randomWait} mins`;
-  }, 10000); // Every 10 seconds
+  }, 10000);
 
-  consultBtn.addEventListener("click", () => {
-    const confirmConsult = confirm("Would you like to start a secure video consultation with an available doctor?");
-    if (!confirmConsult) return;
+  // Initial population
+  populateDoctors();
+}
 
-    // Simulate "Connecting..." state
-    consultBtn.disabled = true;
-    consultBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting...';
+/**
+ * Populates the doctor list.
+ * @param {string} preferredSpecialty - The specialty to prioritize (e.g., from AI analysis)
+ */
+function populateDoctors(preferredSpecialty = null) {
+  const doctorListEl = document.getElementById("doctorList");
+  if (!doctorListEl) return;
 
-    setTimeout(() => {
-      alert("Connecting to a secure medical channel... In a real production environment, this would launch an encrypted WebRTC video call.");
-      consultBtn.disabled = false;
-      consultBtn.innerHTML = '<i class="fa-solid fa-video"></i> Consult Now';
-    }, 2000);
+  doctorListEl.innerHTML = "";
+
+  // Sort: matching specialty first, then alphabetical
+  const sortedDoctors = [...MOCK_DOCTORS].sort((a, b) => {
+    if (preferredSpecialty) {
+      const aMatches = a.specialty === preferredSpecialty;
+      const bMatches = b.specialty === preferredSpecialty;
+      if (aMatches && !bMatches) return -1;
+      if (!aMatches && bMatches) return 1;
+    }
+    return a.name.localeCompare(b.name);
+  });
+
+  sortedDoctors.slice(0, 3).forEach(doc => {
+    const isRecommended = preferredSpecialty && doc.specialty === preferredSpecialty;
+    const item = document.createElement("div");
+    item.className = "hospital-item" + (isRecommended ? " recommended" : "");
+    item.style.border = isRecommended ? "1.5px solid var(--primary-color)" : "1px solid transparent";
+
+    item.onclick = () => {
+      window.location.href = `tel:${doc.phone.replace(/[^0-9+]/g, '')}`;
+    };
+
+    item.innerHTML = `
+      <div class="hospital-info">
+        <span class="hospital-name">
+          ${doc.name} 
+          ${isRecommended ? '<span class="badge" style="font-size: 0.7rem; margin-left: 5px; background: var(--primary-color); color: white; padding: 2px 6px; border-radius: 10px;">RECOMMENDED</span>' : ''}
+        </span>
+        <span class="hospital-addr">${doc.specialty}</span>
+        <span class="hospital-phone"><i class="fa-solid fa-phone"></i> ${doc.phone}</span>
+      </div>
+      <div class="call-icon">
+        <i class="fa-solid fa-phone"></i>
+      </div>
+    `;
+    doctorListEl.appendChild(item);
   });
 }
 
@@ -735,6 +1217,17 @@ document.addEventListener("DOMContentLoaded", () => {
   loadRecentActivity();
   initNavigation();
   initTelemedicine();
+  initChatbot();
+  initVoiceSOS();
+
+  // Initialize Language
+  setLanguage(currentLanguage);
+
+  // Language Toggle
+  const langToggle = document.getElementById("langToggle");
+  if (langToggle) {
+    langToggle.addEventListener("click", toggleLanguage);
+  }
 
   // Profile Form
   const profileForm = document.getElementById("profileForm");
@@ -758,14 +1251,55 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Symptom input
-  const symptomInput = document.querySelector(".symptom-input input");
-  if (symptomInput) {
-    symptomInput.addEventListener("keydown", (e) => {
+  const symptomSearchInput = document.getElementById("symptomSearchInput");
+  if (symptomSearchInput) {
+    symptomSearchInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         runSymptomCheck(e.target.value);
       }
     });
   }
+
+  // Symptom Mic (Voice-to-Text)
+  const symptomMicBtn = document.getElementById("symptomMicBtn");
+  if (symptomMicBtn && symptomSearchInput) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = currentLanguage === "HI" ? "hi-IN" : "en-US";
+
+      recognition.onstart = () => {
+        symptomMicBtn.style.color = "var(--primary-color)";
+        symptomSearchInput.placeholder = currentLanguage === "HI" ? "सुन रहा हूँ..." : "Listening...";
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        symptomSearchInput.value = transcript;
+      };
+
+      recognition.onend = () => {
+        symptomMicBtn.style.color = "";
+        symptomSearchInput.placeholder = TRANSLATIONS[currentLanguage]["placeholder-symptoms"] || "Chest pain, shortness of breath";
+        if (symptomSearchInput.value.trim().length > 0) {
+          runSymptomCheck(symptomSearchInput.value);
+        }
+      };
+
+      symptomMicBtn.addEventListener("click", () => {
+        try {
+          recognition.start();
+        } catch (e) {
+          console.warn("Speech recognition already started or failed:", e);
+        }
+      });
+    } else {
+      symptomMicBtn.style.display = "none";
+    }
+  }
+
 
   // SOS button
   const sosBtn = document.querySelector(".sos-btn");
@@ -838,16 +1372,18 @@ document.addEventListener("DOMContentLoaded", () => {
         // Trigger Call
         window.location.href = "tel:102";
 
-        // Log to Supabase
+        // Log to database
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (user) {
-          await supabaseClient.from('emergency_logs').insert({
-            user_id: user.id,
-            type: 'ambulance_call',
-            condition: lastAnalysisResult?.condition || "Emergency Situation",
-            severity: lastAnalysisResult?.severity || "HIGH",
-            timestamp: new Date().toISOString()
-          });
+          await supabaseClient.from('emergency_logs').insert([
+            {
+              user_id: user.id,
+              type: 'ambulance_call',
+              condition: lastAnalysisResult?.condition || "Emergency Situation",
+              severity: lastAnalysisResult?.severity || "HIGH",
+              timestamp: new Date().toISOString()
+            }
+          ]);
           loadRecentActivity();
         }
       } catch (error) {

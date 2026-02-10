@@ -16,6 +16,17 @@
 <body>
   <div class="container">
 
+    <!-- Voice Strike Overlay -->
+    <div id="voiceStrikeOverlay" class="voice-strike-overlay hidden">
+      <div class="strike-container">
+        <div class="strike-circle" id="strike-1">1</div>
+        <div class="strike-circle" id="strike-2">2</div>
+        <div class="strike-circle" id="strike-3">3</div>
+      </div>
+      <p id="strikeMessage">Emergency Keyword Detected!</p>
+    </div>
+
+    <!-- Firebase / Supabase -->
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="logo">
@@ -26,22 +37,19 @@
       </div>
 
       <div class="active-badge">
-        <span>Dashboard</span>
+        <span data-i18n="nav-dashboard">Dashboard</span>
       </div>
 
       <nav>
         <ul id="sidebarNav">
           <li class="nav-item active" data-view="dashboard">
-            <a href="#"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+            <a href="#"><i class="fa-solid fa-chart-line"></i> <span data-i18n="nav-dashboard">Dashboard</span></a>
           </li>
           <li class="nav-item" data-view="history">
-            <a href="#"><i class="fa-solid fa-clock-rotate-left"></i> History</a>
+            <a href="#"><i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="nav-history">History</span></a>
           </li>
           <li class="nav-item" data-view="profile">
-            <a href="#"><i class="fa-solid fa-user"></i> Profile</a>
-          </li>
-          <li class="nav-item" data-view="settings">
-            <a href="#"><i class="fa-solid fa-gear"></i> Settings</a>
+            <a href="#"><i class="fa-solid fa-user"></i> <span data-i18n="nav-profile">Profile</span></a>
           </li>
         </ul>
       </nav>
@@ -52,11 +60,24 @@
 
       <!-- Header -->
       <header>
-
-        <!-- Search -->
-
-        <!-- Header Actions -->
+        <div class="header-left">
+          <div class="voice-monitor" id="voiceMonitor">
+            <i class="fa-solid fa-microphone"></i>
+            <span id="voiceStatus">OFF</span>
+            <div class="voice-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <button id="voiceToggleBtn" class="voice-toggle-btn" title="Toggle Voice SOS">
+              <i class="fa-solid fa-power-off"></i>
+            </button>
+          </div>
+        </div>
         <div class="header-actions">
+          <!-- Language Switcher -->
+          <button id="langToggle" class="icon-btn" title="Switch Language">
+            <i class="fa-solid fa-language"></i>
+            <span id="currentLangLabel" style="font-size: 0.75rem; font-weight: 600; margin-left: 5px;">HI</span>
+          </button>
 
           <!-- User Menu -->
           <div class="user-menu">
@@ -64,9 +85,8 @@
               <span id="userInitials" class="initials">U</span>
               <span id="userEmail" class="user-email"></span>
             </div>
-            <button id="logoutBtn" class="logout-btn">Logout</button>
+            <button id="logoutBtn" class="logout-btn" data-i18n="logout">Logout</button>
           </div>
-
         </div>
       </header>
 
@@ -77,39 +97,40 @@
         <div class="grid-col col-1" id="col-symptoms">
 
           <div class="card symptom-card">
-            <h3>Symptom Checker</h3>
+            <h3 data-i18n="card-symptoms">Symptom Checker</h3>
             <div class="symptom-input">
-              <i class="fa-solid fa-microphone"></i>
-              <input type="text" placeholder="Chest pain, shortness of breath">
+              <input type="text" id="symptomSearchInput" data-i18n-placeholder="placeholder-symptoms"
+                placeholder="Chest pain, shortness of breath">
+              <button id="symptomMicBtn" class="chat-icon-btn" style="padding: 0 5px; color: var(--text-secondary);">
+                <i class="fa-solid fa-microphone"></i>
+              </button>
             </div>
           </div>
 
           <div class="card severity-card">
-            <h3>Emergency Severity</h3>
+            <h3 data-i18n="card-severity">Emergency Severity</h3>
             <div class="gauge-container">
               <div class="gauge">
                 <i class="fa-solid fa-heart-pulse"></i>
-                <span class="status">HIGH</span>
+                <span class="status" data-i18n="status-high">HIGH</span>
               </div>
               <i class="fa-solid fa-triangle-exclamation warning-icon"></i>
             </div>
           </div>
 
           <div class="card ai-card">
-            <h3>AI Recommendation</h3>
+            <h3 data-i18n="card-ai">AI Recommendation</h3>
             <ul id="aiRecommendationList">
-              <li>1. Call now</li>
-              <li>2. Share Location</li>
-              <li>• Stay Calm & Immobilize</li>
+              <li data-i18n="loading-analysis">Waiting for analysis...</li>
             </ul>
           </div>
 
 
           <div class="card quick-action-card">
-            <h3>Quick Action</h3>
+            <h3 data-i18n="card-quick-action">Quick Action</h3>
             <button class="action-btn primary" id="callAmbulanceBtn"
               style="width: 100%; height: 60px; font-size: 1.1rem;">
-              <i class="fa-solid fa-truck-medical"></i> Call Ambulance
+              <i class="fa-solid fa-truck-medical"></i> <span data-i18n="btn-ambulance">Call Ambulance</span>
             </button>
           </div>
 
@@ -121,7 +142,7 @@
 
           <div class="card map-card">
             <div class="map-header">
-              <h3>Interactive Hospital Locator Map</h3>
+              <h3 data-i18n="card-map">Interactive Hospital Locator Map</h3>
             </div>
             <div class="map-visual" id="map-container"></div>
           </div>
@@ -129,13 +150,14 @@
           <div class="card filter-sos-card">
             <div class="filters" id="dynamicFilters">
               <div class="filter-group">
-                <label>Identified Condition</label>
+                <label data-i18n="label-condition">Identified Condition</label>
                 <div class="tags" id="conditionTags">
-                  <span class="tag"><span class="dot gray"></span> Waiting for analysis...</span>
+                  <span class="tag"><span class="dot gray"></span> <span data-i18n="loading-analysis">Waiting for
+                      analysis...</span></span>
                 </div>
               </div>
               <div class="filter-group">
-                <label>Recommended Filters</label>
+                <label data-i18n="label-recommended">Recommended Filters</label>
                 <div class="tags" id="recommendedFilters">
                   <span class="tag"><span class="dot teal"></span> Emergency Room</span>
                   <span class="tag"><span class="dot green"></span> Cardiology</span>
@@ -144,32 +166,32 @@
             </div>
 
             <div class="sos-wrapper">
-              <button class="sos-btn">
-                SOS
-                <span>Emergency</span>
+              <button class="sos-btn" id="sosBtn">
+                <span data-i18n="sos-main">SOS</span>
+                <span data-i18n="sos-sub">Emergency</span>
               </button>
 
             </div>
           </div>
 
           <div class="card remedy-card" id="remedyCard">
-            <h3>Medicine & Remedies</h3>
+            <h3 data-i18n="card-remedy">Medicine & Remedies</h3>
             <div class="remedy-section">
-              <h4><i class="fa-solid fa-pills"></i> Suggested Medicines</h4>
+              <h4><i class="fa-solid fa-pills"></i> <span data-i18n="label-medicines">Suggested Medicines</span></h4>
               <ul id="medicineList">
-                <li class="placeholder">Waiting for analysis...</li>
+                <li class="placeholder" data-i18n="loading-analysis">Waiting for analysis...</li>
               </ul>
             </div>
             <div class="remedy-section">
-              <h4><i class="fa-solid fa-house-medical"></i> Home Remedies</h4>
+              <h4><i class="fa-solid fa-house-medical"></i> <span data-i18n="label-remedies">Home Remedies</span></h4>
               <ul id="homeRemedyList">
-                <li class="placeholder">Waiting for analysis...</li>
+                <li class="placeholder" data-i18n="loading-analysis">Waiting for analysis...</li>
               </ul>
             </div>
             <div class="medical-disclaimer">
               <i class="fa-solid fa-circle-warning"></i>
-              <span><strong>Disclaimer:</strong> AI suggestions are NOT medical advice. Consult a professional before
-                use.</span>
+              <span data-i18n="disclaimer"><strong>Disclaimer:</strong> AI suggestions are NOT medical advice. Consult a
+                professional before use.</span>
             </div>
           </div>
 
@@ -178,33 +200,32 @@
         <!-- Column 3 -->
         <div class="grid-col col-3" id="col-history">
           <div class="card activity-card">
-            <h3>Recent Activity / Medical History</h3>
+            <h3 data-i18n="card-history">Recent Activity / Medical History</h3>
             <!-- Log items will be loaded dynamically here -->
           </div>
 
-          <div class="card directory-card">
-            <h3>Nearby Hospital Directory</h3>
+          <div class="card directory-card" id="directoryCard">
+            <h3 data-i18n="card-directory">Nearby Hospital Directory</h3>
             <div id="hospitalList" class="hospital-list">
               <!-- Hospital items will be loaded dynamically here -->
-              <p style="padding: 10px; font-size: 0.85rem; color: var(--text-secondary);">Perform a search to see nearby
-                hospitals.</p>
+              <p style="padding: 10px; font-size: 0.85rem; color: var(--text-secondary);"
+                data-i18n="placeholder-hospital">Perform a search to see nearby hospitals.</p>
             </div>
           </div>
 
-          <div class="card telemedicine-card">
+          <div class="card telemedicine-card" id="telemedCard">
             <div class="telemed-header">
-              <h3>Telemedicine</h3>
+              <h3 data-i18n="card-telemed">Telemedicine</h3>
               <div class="online-status">
                 <span class="pulse-dot"></span>
-                <span id="doctorsOnlineCount">12</span> Doctors Online
+                <span id="doctorsOnlineCount">12</span> <span data-i18n="doctors-online">Doctors Online</span>
               </div>
             </div>
-            <p class="telemed-desc">Connect with an expert human doctor instantly via video call.</p>
-            <button class="action-btn" id="consultNowBtn">
-              <i class="fa-solid fa-video"></i> Consult Now
-            </button>
-            <div class="wait-time">
-              <i class="fa-solid fa-clock"></i> Est. wait: <span id="estWaitTime">2 mins</span>
+            <p class="telemed-desc" data-i18n="telemed-desc">Instantly connect with expert doctors available online.</p>
+            <div id="doctorList" class="hospital-list">
+              <!-- Doctor items will be loaded dynamically -->
+              <p style="padding: 10px; font-size: 0.85rem; color: var(--text-secondary);" data-i18n="loading-doctors">
+                Loading available doctors...</p>
             </div>
           </div>
         </div>
@@ -212,10 +233,10 @@
         <!-- Column 4: Profile (Hidden by default) -->
         <div class="grid-col col-profile hidden" id="col-profile">
           <div class="card profile-card">
-            <h3>Medical Profile</h3>
+            <h3 data-i18n="card-profile">Medical Profile</h3>
             <form id="profileForm">
               <div class="form-group">
-                <label>Full Name</label>
+                <label data-i18n="prof-label-name">Full Name</label>
                 <input type="text" id="prof-name" placeholder="John Doe">
               </div>
               <div class="form-row">
@@ -265,6 +286,46 @@
   </div>
 
   <!-- Scripts -->
+  <!-- AI Chatbot -->
+  <div id="aiChatWrapper">
+    <button id="chatBtn" class="chat-toggle-btn">
+      <i class="fa-solid fa-robot"></i>
+      <span class="chat-badge" data-i18n="chat-online">ONLINE</span>
+    </button>
+
+    <div id="chatContainer" class="chat-container hidden">
+      <div class="chat-header">
+        <div class="chat-dr-info">
+          <div class="dr-icon">
+            <i class="fa-solid fa-user-doctor"></i>
+          </div>
+          <div class="dr-text">
+            <h4 data-i18n="chat-title">Dr. LifeLine</h4>
+            <span data-i18n="chat-status">AI Assistant</span>
+          </div>
+        </div>
+        <button id="closeChat" class="close-chat-btn">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div id="chatMessages" class="chat-messages">
+        <div class="message ai-msg">
+          <div class="msg-bubble" data-i18n="chat-welcome">
+            Hello! I am your AI medical assistant. How can I help you today?
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <input type="text" id="chatInput" data-i18n-placeholder="chat-placeholder" placeholder="Ask Dr. LifeLine...">
+        <button id="sendChatBtn">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
