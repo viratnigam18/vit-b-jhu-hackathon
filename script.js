@@ -158,6 +158,18 @@ function initChatbot() {
     if (text) {
       appendChatMessage("user", text);
       chatInput.value = "";
+
+      // Check for help keyword (3 times triggers SOS)
+      if (text.toLowerCase() === "help") {
+        chatHelpCount++;
+        if (chatHelpCount >= 3 && !isSOSTriggering) {
+          chatHelpCount = 0; // Reset
+          triggerSOS();
+        }
+      } else {
+        chatHelpCount = 0; // Reset if something else is typed
+      }
+
       sendToAIChat(text);
     }
   };
@@ -608,7 +620,11 @@ async function fetchNearbyHospitals(loc) {
 
           const response = await fetch(url);
           if (!response.ok) {
-            console.warn(`Mirror ${mirror} failed with status ${response.status}. Trying next...`);
+            if (response.status === 504) {
+              console.warn(`Mirror ${mirror} timed out (504). This is normal for busy servers; trying next mirror...`);
+            } else {
+              console.warn(`Mirror ${mirror} failed with status ${response.status}. Trying next...`);
+            }
             continue;
           }
 
@@ -867,25 +883,54 @@ function initVoiceSOS() {
     const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
     console.log("Heard:", transcript);
 
-    const keywords = ["help", "ambulance", "emergency", "bachao", "bacao", "बचाओ", "मदद"];
+    const sosKeywords = ["help", "ambulance", "emergency", "bachao", "bacao", "बचाओ", "मदद"];
+    const helpKeyword = "help";
 
-    if (keywords.some(k => transcript.includes(k))) {
+    if (transcript.includes(helpKeyword)) {
+      handleVoiceStrike();
+    } else if (sosKeywords.some(k => transcript.includes(k))) {
+      // Still trigger on other keywords? The user said "use this when user says 3 tim help"
+      // Let's make it trigger on any SOS keyword for safety, or specifically "help" as requested.
+      // I'll keep the broader check but prioritize the "3 times help" logic.
       handleVoiceStrike();
     }
   };
 
   recognition.onerror = (event) => {
-    console.warn("Speech recognition error", event.error);
-    if (event.error === 'not-allowed') {
+    if (event.error === 'aborted') {
+      // Silenced to prevent console spam
+      return;
+    }
+
+    if (event.error === 'no-speech') {
+      // Normal for silence, will restart in onend
+      return;
+    }
+
+    console.warn("Speech recognition error:", event.error);
+    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
       stopVoiceMonitoring();
-      alert("Microphone permission is required for Voice SOS.");
+      // Only alert once
+      if (!window._voice_sos_alerted) {
+        alert("Microphone permission or browser support issue for Voice SOS.");
+        window._voice_sos_alerted = true;
+      }
     }
   };
 
   recognition.onend = () => {
-    // Restart recognition only if it was supposed to be running
     if (isVoiceMonitoring) {
-      recognition.start();
+      // Use a slightly longer delay and only log occasionally to prevent spam
+      const restartDelay = 2000;
+      setTimeout(() => {
+        if (isVoiceMonitoring) {
+          try {
+            recognition.start();
+          } catch (e) {
+            // Silently suppress if already started
+          }
+        }
+      }, restartDelay);
     }
   };
 
@@ -922,7 +967,11 @@ function stopVoiceMonitoring() {
   if (voiceToggleBtn) voiceToggleBtn.querySelector("i").className = "fa-solid fa-power-off";
 }
 
+let isSOSTriggering = false; // Guard for duplicate triggers
+
 function handleVoiceStrike() {
+  if (isSOSTriggering) return; // Ignore strikes if already triggering
+
   voiceStrikeCount++;
 
   const overlay = document.getElementById("voiceStrikeOverlay");
@@ -941,11 +990,14 @@ function handleVoiceStrike() {
 
   if (voiceStrikeCount >= 3) {
     // TRIGGER SOS
+    isSOSTriggering = true; // Set guard
     document.getElementById("strikeMessage").textContent = currentLanguage === "HI" ? "आपातकालीन स्थिति सक्रिय!" : "EMERGENCY TRIGGERED!";
     setTimeout(() => {
       overlay.classList.add("hidden");
       resetVoiceStrikes();
       triggerSOS(); // Existing SOS function
+      // Reset guard after some time to allow future SOS if needed (e.g., 10 seconds)
+      setTimeout(() => { isSOSTriggering = false; }, 10000);
     }, 1500);
   } else {
     // Reset strike count after 5 seconds of silence
@@ -1211,6 +1263,8 @@ function populateDoctors(preferredSpecialty = null) {
 // ===============================
 // Init
 // ===============================
+let chatHelpCount = 0; // New: track "help" in chat
+
 document.addEventListener("DOMContentLoaded", () => {
   protectPage();
   initMap();
@@ -1239,9 +1293,13 @@ document.addEventListener("DOMContentLoaded", () => {
   fetch("tunnel.txt")
     .then(res => res.text())
     .then(url => {
-      SOS_WEBHOOK_URL = url.trim() + WEBHOOK_PATH;
+      // User specifically requested this webhook path
+      SOS_WEBHOOK_URL = url.trim() + "/webhook/sos-call";
     })
-    .catch(err => console.warn("Tunnel config not found, using last known or empty:", err));
+    .catch(err => {
+      console.warn("Tunnel config not found, using default localhost:", err);
+      SOS_WEBHOOK_URL = "http://localhost:5678/webhook/sos-call";
+    });
 
   const logoutBtn = document.getElementById("logoutBtn");
 
@@ -1309,8 +1367,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const loc = await getUserLocation();
         const { data: { user } } = await supabaseClient.auth.getUser();
 
-        // Prepare SOS payload
+        // Fetch profile for emergency contact
+        const { data: profile } = await supabaseClient
+          .from('profiles')
+          .select('emergency_contact_name')
+          .eq('user_id', user?.id)
+          .maybeSingle();
+
+        // Prepare SOS payload with requested parameters
         const payload = {
+          friend_name: profile?.emergency_contact_name || "Emergency Contact",
+          patient_problem: lastAnalysisResult?.condition || "Unknown Condition",
           disease_name: lastAnalysisResult?.condition || "Emergency Situation",
           severity: lastAnalysisResult?.severity || "URGENT",
           location: {
