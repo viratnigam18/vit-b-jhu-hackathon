@@ -36,10 +36,6 @@
         <h2>LifeLine</h2>
       </div>
 
-      <div class="active-badge">
-        <span data-i18n="nav-dashboard">Dashboard</span>
-      </div>
-
       <nav>
         <ul id="sidebarNav">
           <li class="nav-item active" data-view="dashboard">
@@ -53,6 +49,9 @@
           </li>
           <li class="nav-item" data-view="watch">
             <a href="#"><i class="fa-solid fa-heart-pulse"></i> <span data-i18n="nav-watch">Watch Connect</span></a>
+          </li>
+          <li class="nav-item" data-view="medications">
+            <a href="#"><i class="fa-solid fa-pills"></i> <span data-i18n="nav-meds">Medication Reminders</span></a>
           </li>
         </ul>
       </nav>
@@ -116,23 +115,11 @@
                   <button id="pillUseCamera" title="Use Camera"><i class="fa-solid fa-camera"></i></button>
                   <button id="pillUploadPic" title="Upload Picture"><i class="fa-solid fa-upload"></i></button>
                 </div>
-                <!-- Video Preview (Inline Popup) -->
-                <div id="videoContainer" class="video-preview-popup hidden">
-                  <video id="cameraVideo" autoplay playsinline></video>
-                  <div class="video-controls">
-                    <button id="capturePhotoBtn" class="capture-btn">
-                      <i class="fa-solid fa-circle"></i>
-                    </button>
-                    <button id="closeCameraBtn" class="close-video-tiny">
-                      <i class="fa-solid fa-xmark"></i>
-                    </button>
-                  </div>
-                  <canvas id="cameraCanvas" style="display: none;"></canvas>
-                </div>
               </div>
-              <input type="file" id="symptomImageInput" accept="image/*" style="display: none;">
             </div>
+            <input type="file" id="symptomImageInput" accept="image/*" style="display: none;">
           </div>
+
 
           <div class="card severity-card">
             <h3 data-i18n="card-severity">Emergency Severity</h3>
@@ -185,6 +172,16 @@
             </div>
           </div>
 
+          <div class="card medication-summary-card">
+            <h3 data-i18n="card-meds-summary">Medication Reminders</h3>
+            <div id="dash-meds-list" class="meds-summary-list">
+              <p class="empty-msg" data-i18n="msg-no-meds">No medications scheduled.</p>
+            </div>
+            <button class="action-btn secondary small-btn" id="dash-add-med-btn" style="margin-top: 10px; width: 100%;">
+              <i class="fa-solid fa-plus"></i> <span data-i18n="btn-add-med">Add / Scan Prescription</span>
+            </button>
+          </div>
+
 
           <div class="card quick-action-card">
             <h3 data-i18n="card-quick-action">Quick Action</h3>
@@ -193,7 +190,6 @@
               <i class="fa-solid fa-truck-medical"></i> <span data-i18n="btn-ambulance">Call Ambulance</span>
             </button>
           </div>
-
 
         </div>
 
@@ -425,8 +421,54 @@
           </div>
         </div>
 
+        <!-- Column 6: Medications (Hidden by default) -->
+        <div class="grid-col col-medications hidden" id="col-medications">
+          <div class="card medications-main-card">
+            <div class="meds-header">
+              <h2 data-i18n="meds-title">Medication Alarms</h2>
+              <p data-i18n="meds-subtitle">AI-Powered Prescription Scanner & Reminders</p>
+            </div>
+
+            <div class="meds-action-bar">
+              <div class="scan-med-box">
+                <button id="scanPrescriptionBtn" class="action-btn primary">
+                  <i class="fa-solid fa-file-medical"></i> <span data-i18n="btn-scan-presc">Scan Prescription</span>
+                </button>
+                <div id="medCameraPill" class="camera-pill hidden">
+                  <button id="medPillUseCamera" title="Use Camera"><i class="fa-solid fa-camera"></i></button>
+                  <button id="medPillUploadPic" title="Upload Picture"><i class="fa-solid fa-upload"></i></button>
+                </div>
+                <input type="file" id="medPrescriptionInput" accept="image/*" style="display: none;">
+              </div>
+              <button id="manualAddMedBtn" class="action-btn secondary">
+                <i class="fa-solid fa-keyboard"></i> <span data-i18n="btn-manual-add">Add Manually</span>
+              </button>
+            </div>
+
+            <div id="medicationsList" class="medications-grid">
+              <!-- Medication cards will be injected here -->
+              <div class="med-loading-spinner hidden" id="medsLoader">
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </main>
+    <!-- Global Video Preview (Inline Popup) -->
+    <div id="videoContainer" class="video-preview-popup hidden">
+      <video id="cameraVideo" autoplay playsinline></video>
+      <div class="video-controls">
+        <button id="capturePhotoBtn" class="capture-btn">
+          <i class="fa-solid fa-circle"></i>
+        </button>
+        <button id="closeCameraBtn" class="close-video-tiny">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <canvas id="cameraCanvas" style="display: none;"></canvas>
+    </div>
   </div>
 
   <!-- Scripts -->
