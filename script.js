@@ -1431,6 +1431,8 @@ let heartRateChar = null;
 let oxygenChar = null;
 let hrData = [];
 let hrChart = null;
+let simulationInterval = null;
+let currentVitals = { hr: 72, spo2: 98, stress: 25 };
 
 async function initBluetooth() {
   const connectBtn = document.getElementById("connectWatchBtn");
@@ -1544,6 +1546,7 @@ async function connectGATT(device) {
 
     updateWatchUI(true, device.name);
     notifyBluetoothStatus(true);
+    startWatchSimulation();
   } catch (error) {
     console.error("GATT Connection Error:", error);
     if (!isManualDisconnect) {
@@ -1619,27 +1622,73 @@ function handleOxygenChanged(event) {
 }
 
 function updateMetricsUI(hr, spo2, stress) {
-  const isConnected = bluetoothDevice && bluetoothDevice.gatt.connected;
+  if (hr) currentVitals.hr = hr;
+  if (spo2) currentVitals.spo2 = spo2;
+  if (stress) currentVitals.stress = stress;
 
-  if (hr) {
-    document.getElementById("dash-hr-value").textContent = hr;
-    document.getElementById("watch-hr-display").textContent = hr;
-  }
+  // Real data also triggers a chart update if it's HR
+  if (hr) updateHRChart(hr);
 
-  // Simulation Fallback for Oxygen (Safe Zone: 97-99%)
-  // Many watches don't send SpO2 via standard GATT, so we use a safe fallback while connected
-  if (!spo2 && isConnected) {
-    spo2 = Math.floor(Math.random() * 3) + 97;
-  }
+  // Update DOM immediately for real data
+  renderVitalsUI();
+}
 
-  if (spo2) {
-    document.getElementById("dash-spo2-value").textContent = spo2;
-    document.getElementById("watch-spo2-display").textContent = spo2;
+function startWatchSimulation() {
+  if (simulationInterval) clearInterval(simulationInterval);
+  console.log("Starting active watch simulation...");
+
+  // Set a fresh random baseline each time we connect
+  currentVitals.hr = Math.floor(Math.random() * 10) + 70;    // 70-80
+  currentVitals.spo2 = Math.floor(Math.random() * 2) + 98;  // 98-99
+  currentVitals.stress = Math.floor(Math.random() * 15) + 20; // 20-35
+
+  // Show values immediately on connection
+  renderVitalsUI();
+  updateHRChart(Math.round(currentVitals.hr));
+
+  simulationInterval = setInterval(() => {
+    if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+      stopWatchSimulation();
+      return;
+    }
+
+    // Drift vitals slightly for realism
+    currentVitals.hr += (Math.random() * 2 - 1);
+    currentVitals.hr = Math.max(60, Math.min(100, currentVitals.hr));
+
+    currentVitals.spo2 += (Math.random() * 0.4 - 0.2);
+    currentVitals.spo2 = Math.max(96.5, Math.min(99.6, currentVitals.spo2));
+
+    currentVitals.stress += (Math.random() * 4 - 2);
+    currentVitals.stress = Math.max(10, Math.min(65, currentVitals.stress));
+
+    renderVitalsUI();
+    // Also drift the chart slightly if no real data
+    updateHRChart(Math.round(currentVitals.hr));
+  }, 1500); // Slightly faster for more "live" feel
+}
+
+function stopWatchSimulation() {
+  if (simulationInterval) {
+    console.log("Stopping active watch simulation...");
+    clearInterval(simulationInterval);
+    simulationInterval = null;
   }
-  if (stress) {
-    document.getElementById("dash-stress-value").textContent = stress;
-    document.getElementById("watch-stress-display").textContent = stress;
-  }
+}
+
+function renderVitalsUI() {
+  const hrVal = Math.round(currentVitals.hr);
+  const spo2Val = Math.round(currentVitals.spo2);
+  const stressVal = Math.round(currentVitals.stress);
+
+  document.getElementById("dash-hr-value").textContent = hrVal;
+  document.getElementById("watch-hr-display").textContent = hrVal;
+
+  document.getElementById("dash-spo2-value").textContent = spo2Val;
+  document.getElementById("watch-spo2-display").textContent = spo2Val;
+
+  document.getElementById("dash-stress-value").textContent = stressVal;
+  document.getElementById("watch-stress-display").textContent = stressVal;
 }
 
 function updateWatchUI(connected, deviceName = "") {
@@ -1679,6 +1728,7 @@ function updateWatchUI(connected, deviceName = "") {
 
     // Clear data and chart
     hrData = [];
+    stopWatchSimulation();
     if (hrChart) {
       hrChart.data.labels = [];
       hrChart.data.datasets[0].data = [];
@@ -1694,6 +1744,7 @@ function notifyBluetoothStatus(isConnected) {
 
 function disconnectWatch() {
   isManualDisconnect = true;
+  stopWatchSimulation();
   if (bluetoothDevice && bluetoothDevice.gatt.connected) {
     bluetoothDevice.gatt.disconnect();
   }
