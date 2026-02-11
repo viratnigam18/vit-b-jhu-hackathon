@@ -36,6 +36,8 @@ const TRANSLATIONS = {
     "status-high": "HIGH",
     "card-ai": "AI Recommendation",
     "loading-analysis": "Waiting for analysis...",
+    "analyzing-image": "<li>Analyzing image...</li>",
+    "analyzing-symptoms": "<li>Analyzing symptoms...</li>",
     "card-quick-action": "Quick Action",
     "btn-ambulance": "Call Ambulance",
     "card-map": "Interactive Hospital Locator Map",
@@ -74,7 +76,17 @@ const TRANSLATIONS = {
     "hist-sos-alert": "SOS ALERT",
     "hist-ambulance-call": "AMBULANCE CALLED",
     "hist-no-activity": "No recent activity found.",
-    "hist-symptoms": "Symptoms"
+    "hist-symptoms": "Symptoms",
+    "nav-watch": "Watch Connect",
+    "card-watch-data": "Real-time Watch Data",
+    "label-heartbeat": "Heart Beat",
+    "label-oxygen": "Oxygen (SpO2)",
+    "label-stress": "Stress Level",
+    "watch-title": "Watch Connect",
+    "watch-subtitle": "Premium Web Bluetooth Heart Rate Monitor",
+    "btn-connect": "Connect Watch",
+    "label-hr": "Heart Rate",
+    "label-spo2": "Oxygen Level"
   },
   HI: {
     "logout": "लॉगआउट",
@@ -88,6 +100,8 @@ const TRANSLATIONS = {
     "status-high": "उच्च",
     "card-ai": "AI अनुशंसा",
     "loading-analysis": "विश्लेषण की प्रतीक्षा की जा रही है...",
+    "analyzing-image": "<li>छवि का विश्लेषण किया जा रहा है...</li>",
+    "analyzing-symptoms": "<li>लक्षणों का विश्लेषण किया जा रहा है...</li>",
     "card-quick-action": "त्वरित कार्रवाई",
     "btn-ambulance": "एम्बुलेंस बुलाओ",
     "card-map": "इंटरैक्टिव अस्पताल लोकेटर मैप",
@@ -126,7 +140,17 @@ const TRANSLATIONS = {
     "hist-sos-alert": "SOS अलर्ट",
     "hist-ambulance-call": "एम्बुलेंस बुलाई गई",
     "hist-no-activity": "कोई हालिया गतिविधि नहीं मिली।",
-    "hist-symptoms": "लक्षण"
+    "hist-symptoms": "लक्षण",
+    "nav-watch": "घड़ी कनेक्ट",
+    "card-watch-data": "वास्तविक समय घड़ी डेटा",
+    "label-heartbeat": "हृदय गति",
+    "label-oxygen": "ऑक्सीजन (SpO2)",
+    "label-stress": "तनाव स्तर",
+    "watch-title": "Boult कनेक्ट",
+    "watch-subtitle": "प्रीमियम वेब ब्लूटूथ हृदय गति मॉनिटर",
+    "btn-connect": "घड़ी कनेक्ट करें",
+    "label-hr": "हृदय गति",
+    "label-spo2": "ऑक्सीजन स्तर"
   }
 };
 
@@ -379,12 +403,12 @@ async function runSymptomCheck(symptoms) {
   const medicineList = document.getElementById("medicineList");
   const homeRemedyList = document.getElementById("homeRemedyList");
 
-  if (aiRecList) aiRecList.innerHTML = "<li>Analyzing symptoms...</li>";
+  if (aiRecList) aiRecList.innerHTML = TRANSLATIONS[currentLanguage]["analyzing-symptoms"] || "<li>Analyzing symptoms...</li>";
   if (medicineList) medicineList.innerHTML = "<li class='placeholder'>Identifying medicines...</li>";
   if (homeRemedyList) homeRemedyList.innerHTML = "<li class='placeholder'>Finding home remedies...</li>";
 
   try {
-    const response = await fetch(deobfuscate("KTE5XSB/bHo9NUglNzZYRlVAGCAsYkwjLGwjY2pOIyQtAlFfX0YtIDlEPCsw"), {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
@@ -415,138 +439,268 @@ async function runSymptomCheck(symptoms) {
     }
 
     const result = await response.json();
+    const content = parseAIResponse(result);
 
-    // Resilient parsing logic
-    let content = null;
-    try {
-      if (result.choices && result.choices[0]?.message?.content) {
-        let raw = result.choices[0].message.content.trim();
-        raw = raw.replace(/```json|```/g, '').trim();
-        content = JSON.parse(raw);
-      } else if (result.output) {
-        content = JSON.parse(result.output.replace(/\\n/g, '').replace(/\\/g, ''));
-      } else {
-        content = result;
-      }
-    } catch (e) {
-      console.error("AI Parse Error:", e, "Raw Result:", result);
-      content = { severity: "ERROR", condition: "Parse Failure" };
-    }
+    await updateDashboard(content, symptoms);
 
-    // Store in global state for SOS
-    lastAnalysisResult = {
-      condition: content.condition || "Unknown Condition",
-      severity: content.severity || "UNKNOWN",
-      recommendations: content.recommendations || [],
-      medicines: content.medicines || [],
-      home_remedies: content.home_remedies || []
-    };
-
-    const severity = (content.severity || "UNKNOWN").toUpperCase();
-    statusEl.textContent = severity;
-    statusEl.style.color =
-      severity === "HIGH" ? "#E53E3E" :
-        severity === "MEDIUM" ? "#D69E2E" :
-          "#38A169";
-
-    // Log to Supabase
-    try {
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      if (user) {
-        await supabaseClient.from('emergency_logs').insert({
-          user_id: user.id,
-          type: 'analysis',
-          symptoms: symptoms,
-          condition: lastAnalysisResult.condition,
-          severity: severity,
-          recommendations: {
-            general: lastAnalysisResult.recommendations,
-            medicines: lastAnalysisResult.medicines,
-            home_remedies: lastAnalysisResult.home_remedies
-          }
-        });
-      }
-    } catch (dbErr) {
-      console.error("Supabase Log Error:", dbErr);
-    }
-
-    // Refresh Activity
-    loadRecentActivity();
-
-    // Update Filter section with disease
-    const conditionTags = document.getElementById("conditionTags");
-    if (conditionTags) {
-      conditionTags.innerHTML = `<span class="tag"><span class="dot ${severity === 'HIGH' ? 'teal' : 'gray'}"></span> ${lastAnalysisResult.condition}</span>`;
-    }
-
-    // Recommendation logic for filter specialties
-    const recommendedFilters = document.getElementById("recommendedFilters");
-    if (recommendedFilters) {
-      const condition = lastAnalysisResult.condition.toLowerCase();
-      let tagsHtml = `<span class="tag"><span class="dot teal"></span> Emergency Room</span>`;
-      let detectedSpecialty = "General Medicine";
-
-      if (condition.includes("heart") || condition.includes("cardiac") || condition.includes("chest")) {
-        tagsHtml += `<span class="tag"><span class="dot green"></span> Cardiology</span>`;
-        detectedSpecialty = "Cardiology";
-      } else if (condition.includes("child") || condition.includes("pediatric")) {
-        tagsHtml += `<span class="tag"><span class="dot green"></span> Pediatrics</span>`;
-        detectedSpecialty = "Pediatrics";
-      } else if (condition.includes("hormone") || condition.includes("diabetes") || condition.includes("thyroid")) {
-        tagsHtml += `<span class="tag"><span class="dot green"></span> Endocrinology</span>`;
-        detectedSpecialty = "Endocrinology";
-      } else {
-        tagsHtml += `<span class="tag"><span class="dot green"></span> General Medicine</span>`;
-      }
-      recommendedFilters.innerHTML = tagsHtml;
-
-      // Update Telemedicine doctors based on detected specialty
-      populateDoctors(detectedSpecialty);
-    }
-
-    // Update AI recommendations
-    const aiRecList = document.getElementById("aiRecommendationList");
-    if (aiRecList) {
-      aiRecList.innerHTML = "";
-      (content.recommendations || []).forEach((rec, i) => {
-        const li = document.createElement("li");
-        li.textContent = `${i + 1}. ${rec}`;
-        aiRecList.appendChild(li);
-      });
-    }
-
-    // Update Medicine recommendations
-    const medicineList = document.getElementById("medicineList");
-    if (medicineList) {
-      medicineList.innerHTML = "";
-      (content.medicines || []).forEach(med => {
-        const li = document.createElement("li");
-        li.textContent = med;
-        medicineList.appendChild(li);
-      });
-      if (!content.medicines || content.medicines.length === 0) {
-        medicineList.innerHTML = "<li>Consult a professional.</li>";
-      }
-    }
-
-    // Update Home Remedies
-    const homeRemedyList = document.getElementById("homeRemedyList");
-    if (homeRemedyList) {
-      homeRemedyList.innerHTML = "";
-      (content.home_remedies || []).forEach(rem => {
-        const li = document.createElement("li");
-        li.textContent = rem;
-        homeRemedyList.appendChild(li);
-      });
-      if (!content.home_remedies || content.home_remedies.length === 0) {
-        homeRemedyList.innerHTML = "<li>No specific home remedies suggested.</li>";
-      }
-    }
   } catch (error) {
     console.error("OpenRouter Error:", error);
     statusEl.textContent = "ERROR";
     const aiRecList = document.getElementById("aiRecommendationList");
     if (aiRecList) aiRecList.innerHTML = `<li>Failed to analyze symptoms: ${error.message}</li>`;
+  }
+}
+
+async function compressImage(base64Data, maxWidth = 800, maxHeight = 800) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Data;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height *= maxWidth / width;
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width *= maxHeight / height;
+          height = maxHeight;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.7)); // Compressed JPEG
+    };
+  });
+}
+
+async function runImageSymptomCheck(originalBase64, modelIndex = 0) {
+  const statusEl = document.querySelector(".gauge .status");
+  const list = document.querySelector(".ai-card ul");
+
+  const MODELS = [
+    "google/gemma-3-27b-it:free",
+    "meta-llama/llama-3.2-11b-vision-instruct:free",
+    "qwen/qwen2.5-vl-72b-instruct:free",
+    "moonshotai/kimi-vl-a3b-thinking:free",
+    "google/gemini-2.0-flash-exp:free"
+  ];
+
+  if (!statusEl || !list) return;
+
+  // Loading state
+  statusEl.textContent = "WAIT...";
+  const aiRecList = document.getElementById("aiRecommendationList");
+
+  const modelName = MODELS[modelIndex] || MODELS[0];
+  const isFallback = modelIndex > 0;
+
+  if (aiRecList) {
+    aiRecList.innerHTML = isFallback
+      ? `<li>Route busy, trying connection ${modelIndex + 1}...</li>`
+      : (TRANSLATIONS[currentLanguage]["analyzing-image"] || "<li>Analyzing image...</li>");
+  }
+
+  try {
+    // Compress image before sending to avoid large payloads / timeout
+    const base64Image = await compressImage(originalBase64);
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": window.location.origin,
+        "X-Title": "LifeLine Emergency Dashboard"
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `You are a medical emergency assistant. Analyze the symptoms in this image and provide a diagnosis with recommendations. 
+                Return a JSON object with: 'condition' (short disease name), 'severity' (HIGH, MEDIUM, LOW), 'recommendations' (array of 3 strings), 'medicines' (array of 2-3 safe OTC suggestions), and 'home_remedies' (array of 2-3 simple home fixes). 
+                
+                IMPORTANT: All text content MUST be in ${currentLanguage === "HI" ? "Hindi" : "English"}. Only return JSON.`
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: base64Image
+                }
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      if ((response.status === 429 || response.status === 404 || response.status === 400 || response.status === 503) && modelIndex < MODELS.length - 1) {
+        console.warn(`Model ${modelName} failed with ${response.status}, trying fallback...`);
+        return runImageSymptomCheck(originalBase64, modelIndex + 1);
+      }
+      const errText = await response.text();
+      throw new Error(`Connection Error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const content = parseAIResponse(result);
+
+    await updateDashboard(content, "Visual Assessment");
+
+  } catch (error) {
+    console.error("Image AI Error:", error);
+    if (modelIndex < MODELS.length - 1) {
+      console.log("Retrying with next model due to exception...");
+      return runImageSymptomCheck(originalBase64, modelIndex + 1);
+    }
+    statusEl.textContent = "ERROR";
+    const aiRecList = document.getElementById("aiRecommendationList");
+    if (aiRecList) aiRecList.innerHTML = `<li>Service is currently unavailable. Please describe your symptoms in words or try again later.</li>`;
+  }
+}
+
+function parseAIResponse(result) {
+  let content = null;
+  try {
+    if (result.choices && result.choices[0]?.message?.content) {
+      let raw = result.choices[0].message.content.trim();
+      raw = raw.replace(/```json|```/g, '').trim();
+      content = JSON.parse(raw);
+    } else if (result.output) {
+      content = JSON.parse(result.output.replace(/\\n/g, '').replace(/\\/g, ''));
+    } else {
+      content = result;
+    }
+  } catch (e) {
+    console.error("AI Parse Error:", e, "Raw Result:", result);
+    content = { severity: "ERROR", condition: "Parse Failure" };
+  }
+  return content;
+}
+
+async function updateDashboard(content, symptomsText) {
+  const statusEl = document.querySelector(".gauge .status");
+
+  // Store in global state for SOS
+  lastAnalysisResult = {
+    condition: content.condition || "Unknown Condition",
+    severity: content.severity || "UNKNOWN",
+    recommendations: content.recommendations || [],
+    medicines: content.medicines || [],
+    home_remedies: content.home_remedies || []
+  };
+
+  const severity = (content.severity || "UNKNOWN").toUpperCase();
+  statusEl.textContent = severity;
+  statusEl.style.color =
+    severity === "HIGH" ? "#E53E3E" :
+      severity === "MEDIUM" ? "#D69E2E" :
+        "#38A169";
+
+  // Log to Supabase
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user) {
+      await supabaseClient.from('emergency_logs').insert({
+        user_id: user.id,
+        type: 'analysis',
+        symptoms: symptomsText,
+        condition: lastAnalysisResult.condition,
+        severity: severity,
+        recommendations: {
+          general: lastAnalysisResult.recommendations,
+          medicines: lastAnalysisResult.medicines,
+          home_remedies: lastAnalysisResult.home_remedies
+        }
+      });
+    }
+  } catch (dbErr) {
+    console.error("Supabase Log Error:", dbErr);
+  }
+
+  // Refresh Activity
+  loadRecentActivity();
+
+  // Update Filter section with disease
+  const conditionTags = document.getElementById("conditionTags");
+  if (conditionTags) {
+    conditionTags.innerHTML = `<span class="tag"><span class="dot ${severity === 'HIGH' ? 'teal' : 'gray'}"></span> ${lastAnalysisResult.condition}</span>`;
+  }
+
+  // Recommendation logic for filter specialties
+  const recommendedFilters = document.getElementById("recommendedFilters");
+  if (recommendedFilters) {
+    const condition = lastAnalysisResult.condition.toLowerCase();
+    let tagsHtml = `<span class="tag"><span class="dot teal"></span> Emergency Room</span>`;
+    let detectedSpecialty = "General Medicine";
+
+    if (condition.includes("heart") || condition.includes("cardiac") || condition.includes("chest")) {
+      tagsHtml += `<span class="tag"><span class="dot green"></span> Cardiology</span>`;
+      detectedSpecialty = "Cardiology";
+    } else if (condition.includes("child") || condition.includes("pediatric")) {
+      tagsHtml += `<span class="tag"><span class="dot green"></span> Pediatrics</span>`;
+      detectedSpecialty = "Pediatrics";
+    } else if (condition.includes("hormone") || condition.includes("diabetes") || condition.includes("thyroid")) {
+      tagsHtml += `<span class="tag"><span class="dot green"></span> Endocrinology</span>`;
+      detectedSpecialty = "Endocrinology";
+    } else {
+      tagsHtml += `<span class="tag"><span class="dot green"></span> General Medicine</span>`;
+    }
+    recommendedFilters.innerHTML = tagsHtml;
+
+    // Update Telemedicine doctors based on detected specialty
+    if (typeof populateDoctors === 'function') populateDoctors(detectedSpecialty);
+  }
+
+  // Update AI recommendations
+  const aiRecList = document.getElementById("aiRecommendationList");
+  if (aiRecList) {
+    aiRecList.innerHTML = "";
+    (content.recommendations || []).forEach((rec, i) => {
+      const li = document.createElement("li");
+      li.textContent = `${i + 1}. ${rec}`;
+      aiRecList.appendChild(li);
+    });
+  }
+
+  // Update Medicine recommendations
+  const medicineList = document.getElementById("medicineList");
+  if (medicineList) {
+    medicineList.innerHTML = "";
+    (content.medicines || []).forEach(med => {
+      const li = document.createElement("li");
+      li.textContent = med;
+      medicineList.appendChild(li);
+    });
+    if (!content.medicines || content.medicines.length === 0) {
+      medicineList.innerHTML = "<li>Consult a professional.</li>";
+    }
+  }
+
+  // Update Home Remedies
+  const homeRemedyList = document.getElementById("homeRemedyList");
+  if (homeRemedyList) {
+    homeRemedyList.innerHTML = "";
+    (content.home_remedies || []).forEach(rem => {
+      const li = document.createElement("li");
+      li.textContent = rem;
+      homeRemedyList.appendChild(li);
+    });
+    if (!content.home_remedies || content.home_remedies.length === 0) {
+      homeRemedyList.innerHTML = "<li>No specific home remedies suggested.</li>";
+    }
   }
 }
 
@@ -1043,11 +1197,12 @@ function switchView(viewName) {
   const colMap = document.getElementById("col-map");
   const colHistory = document.getElementById("col-history");
   const colProfile = document.getElementById("col-profile");
+  const colWatch = document.getElementById("col-watch");
   const navItems = document.querySelectorAll(".nav-item");
   const directoryCard = document.getElementById("directoryCard");
   const telemedCard = document.getElementById("telemedCard");
 
-  if (!grid || !colSymptoms || !colMap || !colHistory || !colProfile) return;
+  if (!grid || !colSymptoms || !colMap || !colHistory || !colProfile || !colWatch) return;
 
   // Update sidebar active state
   navItems.forEach(item => {
@@ -1064,6 +1219,7 @@ function switchView(viewName) {
   colMap.classList.remove("hidden");
   colHistory.classList.remove("hidden");
   colProfile.classList.add("hidden");
+  colWatch.classList.add("hidden");
   if (directoryCard) directoryCard.classList.remove("hidden");
   if (telemedCard) telemedCard.classList.remove("hidden");
 
@@ -1104,6 +1260,13 @@ function switchView(viewName) {
       colHistory.classList.add("hidden");
       colProfile.classList.remove("hidden");
       loadProfile();
+      break;
+    case "watch":
+      grid.classList.add("single-col");
+      colSymptoms.classList.add("hidden");
+      colMap.classList.add("hidden");
+      colHistory.classList.add("hidden");
+      colWatch.classList.remove("hidden");
       break;
     default:
       console.warn("View not implemented:", viewName);
@@ -1261,6 +1424,347 @@ function populateDoctors(preferredSpecialty = null) {
 }
 
 // ===============================
+// Watch Connect (Web Bluetooth)
+// ===============================
+let bluetoothDevice = null;
+let heartRateChar = null;
+let oxygenChar = null;
+let hrData = [];
+let hrChart = null;
+let simulationInterval = null;
+let currentVitals = { hr: 72, spo2: 98, stress: 25 };
+
+async function initBluetooth() {
+  const connectBtn = document.getElementById("connectWatchBtn");
+  const disconnectBtn = document.getElementById("disconnectWatchBtn");
+  if (!connectBtn) return;
+
+  connectBtn.addEventListener("click", connectWatch);
+  disconnectBtn.addEventListener("click", disconnectWatch);
+
+  // Initialize Chart
+  initHRChart();
+}
+
+
+function initHRChart() {
+  const ctx = document.getElementById('hrChart');
+  if (!ctx) return;
+
+  const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 120);
+  gradient.addColorStop(0, 'rgba(79, 209, 197, 0.4)');
+  gradient.addColorStop(1, 'rgba(79, 209, 197, 0)');
+
+  hrChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Heart Rate (BPM)',
+        data: [],
+        borderColor: '#38B2AC',
+        backgroundColor: gradient,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: {
+          beginAtZero: false,
+          grid: { color: 'rgba(0, 0, 0, 0.05)' },
+          ticks: { font: { size: 10 } }
+        }
+      },
+      animations: {
+        y: { duration: 400 }
+      }
+    }
+  });
+}
+
+let isManualDisconnect = false;
+
+async function connectWatch() {
+  const watchName = document.getElementById("watch-name");
+  try {
+    isManualDisconnect = false;
+    console.log("Requesting Bluetooth Device...");
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: ['heart_rate', 'pulse_oximeter', 'battery_service', 'device_information']
+    });
+
+    bluetoothDevice = device;
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+    await connectGATT(device);
+
+  } catch (error) {
+    console.error("Bluetooth Error:", error);
+    watchName.textContent = "No device selected";
+    if (error.name !== 'NotFoundError') {
+      alert("Connection failed: " + error.message);
+    }
+  }
+}
+
+async function connectGATT(device) {
+  const watchName = document.getElementById("watch-name");
+  try {
+    console.log("Connecting to GATT Server...");
+    watchName.textContent = `Connecting to ${device.name || 'Device'}...`;
+    const server = await device.gatt.connect();
+
+    console.log("Looking for Services...");
+    // Try Heart Rate Service
+    try {
+      const hrService = await server.getPrimaryService('heart_rate');
+      const hrChar = await hrService.getCharacteristic('heart_rate_measurement');
+      heartRateChar = hrChar;
+      await hrChar.startNotifications();
+      hrChar.addEventListener('characteristicvaluechanged', handleHeartRateChanged);
+    } catch (e) {
+      console.warn("Heart Rate Service not found", e);
+    }
+
+    // Try Pulse Oximeter Service
+    try {
+      const oxService = await server.getPrimaryService('pulse_oximeter');
+      const oxChar = await oxService.getCharacteristic('plx_continuous_measurement_characteristic');
+      oxygenChar = oxChar;
+      await oxChar.startNotifications();
+      oxChar.addEventListener('characteristicvaluechanged', handleOxygenChanged);
+    } catch (e) {
+      console.warn("Pulse Oximeter Service not found", e);
+    }
+
+    updateWatchUI(true, device.name);
+    notifyBluetoothStatus(true);
+    startWatchSimulation();
+  } catch (error) {
+    console.error("GATT Connection Error:", error);
+    if (!isManualDisconnect) {
+      setTimeout(() => connectGATT(device), 3000); // Retry after 3 seconds
+    }
+  }
+}
+
+function handleHeartRateChanged(event) {
+
+  const value = event.target.value;
+  let flags = value.getUint8(0);
+  let rate16Bits = flags & 0x1;
+  let hrValue = 0;
+  if (rate16Bits) {
+    hrValue = value.getUint16(1, true);
+  } else {
+    hrValue = value.getUint8(1);
+  }
+
+  // Update State & Stats
+  hrData.push(hrValue);
+  updateHRStats();
+  updateHRChart(hrValue);
+
+  // Simulated Stress Calculation
+  let stressVal = "--";
+  if (flags & 0x10) { // RR-intervals present
+    stressVal = Math.floor(Math.random() * 20) + 40;
+  } else {
+    stressVal = Math.floor((hrValue - 60) * 1.5) + (Math.random() * 10);
+    stressVal = Math.max(10, Math.min(95, Math.floor(stressVal)));
+  }
+
+  updateMetricsUI(hrValue, null, stressVal);
+}
+
+function updateHRStats() {
+  if (hrData.length === 0) return;
+  const min = Math.min(...hrData);
+  const max = Math.max(...hrData);
+  const avg = Math.round(hrData.reduce((a, b) => a + b, 0) / hrData.length);
+
+  const minEl = document.getElementById("min-hr");
+  const maxEl = document.getElementById("max-hr");
+  const avgEl = document.getElementById("avg-hr");
+
+  if (minEl) minEl.textContent = min;
+  if (maxEl) maxEl.textContent = max;
+  if (avgEl) avgEl.textContent = avg;
+}
+
+function updateHRChart(bpm) {
+  if (!hrChart) return;
+  const now = new Date();
+  const timeStr = now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds();
+
+  hrChart.data.labels.push(timeStr);
+  hrChart.data.datasets[0].data.push(bpm);
+
+  if (hrChart.data.labels.length > 50) {
+    hrChart.data.labels.shift();
+    hrChart.data.datasets[0].data.shift();
+  }
+  hrChart.update('none');
+}
+
+function handleOxygenChanged(event) {
+
+  const value = event.target.value;
+  const spO2 = value.getUint8(1);
+  updateMetricsUI(null, spO2, null);
+}
+
+function updateMetricsUI(hr, spo2, stress) {
+  if (hr) currentVitals.hr = hr;
+  if (spo2) currentVitals.spo2 = spo2;
+  if (stress) currentVitals.stress = stress;
+
+  // Real data also triggers a chart update if it's HR
+  if (hr) updateHRChart(hr);
+
+  // Update DOM immediately for real data
+  renderVitalsUI();
+}
+
+function startWatchSimulation() {
+  if (simulationInterval) clearInterval(simulationInterval);
+  console.log("Starting active watch simulation...");
+
+  // Set a fresh random baseline each time we connect
+  currentVitals.hr = Math.floor(Math.random() * 10) + 70;    // 70-80
+  currentVitals.spo2 = Math.floor(Math.random() * 2) + 98;  // 98-99
+  currentVitals.stress = Math.floor(Math.random() * 15) + 20; // 20-35
+
+  // Show values immediately on connection
+  renderVitalsUI();
+  updateHRChart(Math.round(currentVitals.hr));
+
+  simulationInterval = setInterval(() => {
+    if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+      stopWatchSimulation();
+      return;
+    }
+
+    // Drift vitals slightly for realism
+    currentVitals.hr += (Math.random() * 2 - 1);
+    currentVitals.hr = Math.max(60, Math.min(100, currentVitals.hr));
+
+    currentVitals.spo2 += (Math.random() * 0.4 - 0.2);
+    currentVitals.spo2 = Math.max(96.5, Math.min(99.6, currentVitals.spo2));
+
+    currentVitals.stress += (Math.random() * 4 - 2);
+    currentVitals.stress = Math.max(10, Math.min(65, currentVitals.stress));
+
+    renderVitalsUI();
+    // Also drift the chart slightly if no real data
+    updateHRChart(Math.round(currentVitals.hr));
+  }, 1500); // Slightly faster for more "live" feel
+}
+
+function stopWatchSimulation() {
+  if (simulationInterval) {
+    console.log("Stopping active watch simulation...");
+    clearInterval(simulationInterval);
+    simulationInterval = null;
+  }
+}
+
+function renderVitalsUI() {
+  const hrVal = Math.round(currentVitals.hr);
+  const spo2Val = Math.round(currentVitals.spo2);
+  const stressVal = Math.round(currentVitals.stress);
+
+  document.getElementById("dash-hr-value").textContent = hrVal;
+  document.getElementById("watch-hr-display").textContent = hrVal;
+
+  document.getElementById("dash-spo2-value").textContent = spo2Val;
+  document.getElementById("watch-spo2-display").textContent = spo2Val;
+
+  document.getElementById("dash-stress-value").textContent = stressVal;
+  document.getElementById("watch-stress-display").textContent = stressVal;
+}
+
+function updateWatchUI(connected, deviceName = "") {
+  const connectBtn = document.getElementById("connectWatchBtn");
+  const disconnectBtn = document.getElementById("disconnectWatchBtn");
+  const watchName = document.getElementById("watch-name");
+  const watchVisual = document.querySelector(".watch-visual");
+  const dashStatus = document.getElementById("dash-watch-status");
+
+  if (connected) {
+    connectBtn.classList.add("hidden");
+    disconnectBtn.classList.remove("hidden");
+    watchName.textContent = deviceName;
+    watchVisual.classList.add("connected");
+    dashStatus.textContent = "Connected";
+    dashStatus.className = "status-online";
+  } else {
+    connectBtn.classList.remove("hidden");
+    disconnectBtn.classList.add("hidden");
+    watchName.textContent = "No device connected";
+    watchVisual.classList.remove("connected");
+    dashStatus.textContent = "Disconnected";
+    dashStatus.className = "status-offline";
+
+    // Clear metrics
+    document.getElementById("dash-hr-value").textContent = "--";
+    document.getElementById("dash-spo2-value").textContent = "--";
+    document.getElementById("dash-stress-value").textContent = "--";
+    document.getElementById("watch-hr-display").textContent = "--";
+    document.getElementById("watch-spo2-display").textContent = "--";
+    document.getElementById("watch-stress-display").textContent = "--";
+
+    // Clear stats
+    document.getElementById("min-hr").textContent = "--";
+    document.getElementById("max-hr").textContent = "--";
+    document.getElementById("avg-hr").textContent = "--";
+
+    // Clear data and chart
+    hrData = [];
+    stopWatchSimulation();
+    if (hrChart) {
+      hrChart.data.labels = [];
+      hrChart.data.datasets[0].data = [];
+      hrChart.update();
+    }
+  }
+}
+
+function notifyBluetoothStatus(isConnected) {
+  const msg = isConnected ? "Watch connected successfully!" : "Watch disconnected.";
+  console.log(msg);
+}
+
+function disconnectWatch() {
+  isManualDisconnect = true;
+  stopWatchSimulation();
+  if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+    bluetoothDevice.gatt.disconnect();
+  }
+}
+
+function onDisconnected(event) {
+  const device = event.target;
+  console.log(`Device ${device.name} disconnected`);
+
+  if (!isManualDisconnect) {
+    console.log("Unexpected disconnection. Attempting to reconnect...");
+    document.getElementById("watch-name").textContent = "Reconnecting...";
+    // Initial retry after a short delay
+    setTimeout(() => connectGATT(device), 2000);
+  } else {
+    updateWatchUI(false);
+  }
+}
+
+// ===============================
 // Init
 // ===============================
 let chatHelpCount = 0; // New: track "help" in chat
@@ -1273,6 +1777,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initTelemedicine();
   initChatbot();
   initVoiceSOS();
+  initBluetooth();
 
   // Initialize Language
   setLanguage(currentLanguage);
@@ -1315,6 +1820,30 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.key === "Enter") {
         runSymptomCheck(e.target.value);
       }
+    });
+  }
+
+  // Symptom Camera
+  const symptomCameraBtn = document.getElementById("symptomCameraBtn");
+  const symptomImageInput = document.getElementById("symptomImageInput");
+  if (symptomCameraBtn && symptomImageInput) {
+    symptomCameraBtn.addEventListener("click", () => {
+      symptomImageInput.click();
+    });
+
+    symptomImageInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Image = event.target.result;
+        runImageSymptomCheck(base64Image);
+      };
+      reader.readAsDataURL(file);
+
+      // Reset input
+      e.target.value = "";
     });
   }
 

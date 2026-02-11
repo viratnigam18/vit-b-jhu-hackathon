@@ -51,6 +51,9 @@
           <li class="nav-item" data-view="profile">
             <a href="#"><i class="fa-solid fa-user"></i> <span data-i18n="nav-profile">Profile</span></a>
           </li>
+          <li class="nav-item" data-view="watch">
+            <a href="#"><i class="fa-solid fa-heart-pulse"></i> <span data-i18n="nav-watch">Watch Connect</span></a>
+          </li>
         </ul>
       </nav>
     </aside>
@@ -104,6 +107,10 @@
               <button id="symptomMicBtn" class="chat-icon-btn" style="padding: 0 5px; color: var(--text-secondary);">
                 <i class="fa-solid fa-microphone"></i>
               </button>
+              <button id="symptomCameraBtn" class="chat-icon-btn" style="padding: 0 5px; color: var(--text-secondary);">
+                <i class="fa-solid fa-camera"></i>
+              </button>
+              <input type="file" id="symptomImageInput" accept="image/*" style="display: none;">
             </div>
           </div>
 
@@ -123,6 +130,39 @@
             <ul id="aiRecommendationList">
               <li data-i18n="loading-analysis">Waiting for analysis...</li>
             </ul>
+          </div>
+
+          <div class="card watch-data-card" id="watchDashboardCard">
+            <h3 data-i18n="card-watch-data">Real-time Watch Data</h3>
+            <div class="watch-metrics-grid">
+              <div class="metric-item">
+                <i class="fa-solid fa-heart-pulse hr-icon"></i>
+                <div class="metric-info">
+                  <span class="metric-label" data-i18n="label-heartbeat">Heart Beat</span>
+                  <span id="dash-hr-value" class="metric-value">--</span>
+                  <span class="metric-unit">BPM</span>
+                </div>
+              </div>
+              <div class="metric-item">
+                <i class="fa-solid fa-droplet spo2-icon"></i>
+                <div class="metric-info">
+                  <span class="metric-label" data-i18n="label-oxygen">Oxygen (SpO2)</span>
+                  <span id="dash-spo2-value" class="metric-value">--</span>
+                  <span class="metric-unit">%</span>
+                </div>
+              </div>
+              <div class="metric-item">
+                <i class="fa-solid fa-brain-circuit stress-icon"></i>
+                <div class="metric-info">
+                  <span class="metric-label" data-i18n="label-stress">Stress Level</span>
+                  <span id="dash-stress-value" class="metric-value">--</span>
+                  <span class="metric-unit">%</span>
+                </div>
+              </div>
+            </div>
+            <div class="watch-status-mini">
+              <span id="dash-watch-status" class="status-offline">Disconnected</span>
+            </div>
           </div>
 
 
@@ -281,6 +321,90 @@
           </div>
         </div>
 
+        <!-- Column 5: Watch Connect (Hidden by default) -->
+        <div class="grid-col col-watch hidden" id="col-watch">
+          <div class="card watch-main-card">
+            <div class="watch-header">
+              <h2 data-i18n="watch-title">Watch Connect</h2>
+              <p data-i18n="watch-subtitle">Premium Web Bluetooth Heart Rate Monitor</p>
+            </div>
+
+            <div class="watch-connection-area">
+              <div class="watch-visual">
+                <div class="smartwatch-icon">
+                  <i class="fa-solid fa-clock"></i>
+                  <div class="pulse-ring"></div>
+                </div>
+                <div id="device-info" class="device-info">
+                  <p id="watch-name">No device connected</p>
+                  <p id="watch-battery" class="hidden">Battery: <span id="watch-battery-val">--</span>%</p>
+                </div>
+              </div>
+
+              <button id="connectWatchBtn" class="action-btn primary connect-btn">
+                <i class="fa-brands fa-bluetooth"></i> <span data-i18n="btn-connect">Connect Watch</span>
+              </button>
+              <button id="disconnectWatchBtn" class="action-btn secondary hidden">
+                Disconnect
+              </button>
+            </div>
+
+            <div class="watch-realtime-grid">
+              <div class="realtime-metric-card hr-card">
+                <div class="metric-header">
+                  <i class="fa-solid fa-heart-pulse"></i>
+                  <span data-i18n="label-hr">Heart Rate</span>
+                </div>
+                <div class="metric-main">
+                  <span id="watch-hr-display">--</span>
+                  <span class="unit">BPM</span>
+                </div>
+                <div class="hr-stats-mini">
+                  <span>Min: <span id="min-hr">--</span></span>
+                  <span>Max: <span id="max-hr">--</span></span>
+                  <span>Avg: <span id="avg-hr">--</span></span>
+                </div>
+                <div class="hr-chart-box">
+                  <canvas id="hrChart"></canvas>
+                </div>
+              </div>
+
+              <div class="realtime-metric-card spo2-card">
+                <div class="metric-header">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span data-i18n="label-spo2">Oxygen Level</span>
+                </div>
+                <div class="metric-main">
+                  <span id="watch-spo2-display">--</span>
+                  <span class="unit">%</span>
+                </div>
+              </div>
+
+              <div class="realtime-metric-card stress-card">
+                <div class="metric-header">
+                  <i class="fa-solid fa-brain-circuit"></i>
+                  <span data-i18n="label-stress">Stress Level</span>
+                </div>
+                <div class="metric-main">
+                  <span id="watch-stress-display">--</span>
+                  <span class="unit">%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="watch-features">
+              <div class="feature-item">
+                <i class="fa-solid fa-shield-halved"></i>
+                <p>Universal Dashboard support for standard medical Bluetooth protocols</p>
+              </div>
+              <div class="feature-item">
+                <i class="fa-solid fa-infinity"></i>
+                <p>Persistent stream (Always-on data connection)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </main>
   </div>
@@ -329,6 +453,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="crypto.js"></script>
   <script src="config.js"></script>
   <script src="script.js"></script>
