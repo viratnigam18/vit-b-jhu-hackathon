@@ -49,9 +49,26 @@ document.getElementById("signupBtn").addEventListener("click", async () => {
 
   try {
 
+    const name = document.getElementById("name").value.trim();
+    const dob = document.getElementById("dob").value;
+    const blood = document.getElementById("blood").value.trim();
+    const allergy = document.getElementById("allergy").value.trim();
+    const condition = document.getElementById("condition").value.trim();
+    const emergency = document.getElementById("emergency").value.trim();
+
     const { error } = await supabaseClient.auth.signUp({
       email,
-      password
+      password,
+      options: {
+        data: {
+          name: name,
+          dob: dob,
+          blood: blood,
+          allergy: allergy,
+          medical_conditions: condition,
+          emergency_contact_phone: emergency
+        }
+      }
     });
 
     if (error) throw error;

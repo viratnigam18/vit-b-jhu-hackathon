@@ -13,8 +13,8 @@ const supabaseClient = window.supabase.createClient(
 // API Keys (For Hackathon)
 // ===============================
 const OPENROUTER_API_KEY = deobfuscate(window.CONFIG.OPENROUTER_API_KEY);
-let SOS_WEBHOOK_URL = "";
-const WEBHOOK_PATH = deobfuscate(window.CONFIG.WEBHOOK_PATH); // "/webhook/sos"
+const SOS_CALL_URL = "https://n8n-production-29196.up.railway.app/webhook/sos-call";
+const SOS_MSG_URL = "https://n8n-production-29196.up.railway.app/webhook/sos";
 
 // State to store last AI analysis for SOS
 let lastAnalysisResult = null;
@@ -48,6 +48,9 @@ const TRANSLATIONS = {
     "card-remedy": "Medicine & Remedies",
     "label-medicines": "Suggested Medicines",
     "label-remedies": "Home Remedies",
+    "camera-options": "Photo Options",
+    "opt-use-camera": "Use Camera",
+    "opt-upload-pic": "Upload Picture",
     "disclaimer": "<strong>Disclaimer:</strong> AI suggestions are NOT medical advice. Consult a professional before use.",
     "card-history": "Recent Activity / Medical History",
     "card-directory": "Nearby Hospital Directory",
@@ -86,7 +89,18 @@ const TRANSLATIONS = {
     "watch-subtitle": "Premium Web Bluetooth Heart Rate Monitor",
     "btn-connect": "Connect Watch",
     "label-hr": "Heart Rate",
-    "label-spo2": "Oxygen Level"
+    "label-spo2": "Oxygen Level",
+    "nav-meds": "Medication Reminders",
+    "card-meds-summary": "Medication Reminders",
+    "msg-no-meds": "No medications scheduled.",
+    "btn-add-med": "Add / Scan Prescription",
+    "meds-title": "Medication Alarms",
+    "meds-subtitle": "AI-Powered Prescription Scanner & Reminders",
+    "btn-scan-presc": "Scan Prescription",
+    "btn-manual-add": "Add Manually",
+    "alarm-title": "Medicine Time!",
+    "alarm-msg": "It's time to take your: ",
+    "btn-dismiss": "Dismiss"
   },
   HI: {
     "logout": "लॉगआउट",
@@ -112,6 +126,9 @@ const TRANSLATIONS = {
     "card-remedy": "दवा और उपचार",
     "label-medicines": "सुझाई गई दवाएं",
     "label-remedies": "घरेलू उपचार",
+    "camera-options": "फोटो विकल्प",
+    "opt-use-camera": "कैमरा उपयोग करें",
+    "opt-upload-pic": "फोटो अपलोड करें",
     "disclaimer": "<strong>अस्वीकरण:</strong> AI सुझाव चिकित्सा सलाह नहीं हैं। उपयोग करने से पहले किसी पेशेवर से परामर्श लें।",
     "card-history": "हाल की गतिविधि / चिकित्सा इतिहास",
     "card-directory": "नजदीकी अस्पताल निर्देशिका",
@@ -150,7 +167,18 @@ const TRANSLATIONS = {
     "watch-subtitle": "प्रीमियम वेब ब्लूटूथ हृदय गति मॉनिटर",
     "btn-connect": "घड़ी कनेक्ट करें",
     "label-hr": "हृदय गति",
-    "label-spo2": "ऑक्सीजन स्तर"
+    "label-spo2": "ऑक्सीजन स्तर",
+    "nav-meds": "दवा अनुस्मारक",
+    "card-meds-summary": "दवा अनुस्मारक",
+    "msg-no-meds": "कोई दवा निर्धारित नहीं है।",
+    "btn-add-med": "दवा जोड़ें / प्रिस्क्रिप्शन स्कैन करें",
+    "meds-title": "दवा अलार्म",
+    "meds-subtitle": "AI-संचालित प्रिस्क्रिप्शन स्कैनर और अनुस्मारक",
+    "btn-scan-presc": "प्रिस्क्रिप्शन स्कैन करें",
+    "btn-manual-add": "मैन्युअल रूप से जोड़ें",
+    "alarm-title": "दवा का समय!",
+    "alarm-msg": "आपकी दवा लेने का समय हो गया है: ",
+    "btn-dismiss": "खारिज करें"
   }
 };
 
@@ -1198,11 +1226,12 @@ function switchView(viewName) {
   const colHistory = document.getElementById("col-history");
   const colProfile = document.getElementById("col-profile");
   const colWatch = document.getElementById("col-watch");
+  const colMeds = document.getElementById("col-medications");
   const navItems = document.querySelectorAll(".nav-item");
   const directoryCard = document.getElementById("directoryCard");
   const telemedCard = document.getElementById("telemedCard");
 
-  if (!grid || !colSymptoms || !colMap || !colHistory || !colProfile || !colWatch) return;
+  if (!grid || !colSymptoms || !colMap || !colHistory || !colProfile || !colWatch || !colMeds) return;
 
   // Update sidebar active state
   navItems.forEach(item => {
@@ -1220,6 +1249,7 @@ function switchView(viewName) {
   colHistory.classList.remove("hidden");
   colProfile.classList.add("hidden");
   colWatch.classList.add("hidden");
+  colMeds.classList.add("hidden");
   if (directoryCard) directoryCard.classList.remove("hidden");
   if (telemedCard) telemedCard.classList.remove("hidden");
 
@@ -1227,6 +1257,7 @@ function switchView(viewName) {
     case "dashboard":
       // Show all (default)
       loadRecentActivity(3, false);
+      loadMedications();
       break;
     case "symptoms":
       grid.classList.add("single-col");
@@ -1268,6 +1299,14 @@ function switchView(viewName) {
       colHistory.classList.add("hidden");
       colWatch.classList.remove("hidden");
       break;
+    case "medications":
+      grid.classList.add("single-col");
+      colSymptoms.classList.add("hidden");
+      colMap.classList.add("hidden");
+      colHistory.classList.add("hidden");
+      colMeds.classList.remove("hidden");
+      loadMedications();
+      break;
     default:
       console.warn("View not implemented:", viewName);
   }
@@ -1287,7 +1326,12 @@ async function loadProfile() {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '42703' || error.message.includes('column')) {
+        console.warn("Table schema mismatch: Some profile columns are missing. Please run schema.sql in Supabase SQL Editor.");
+      }
+      throw error;
+    }
 
     if (data) {
       document.getElementById("prof-name").value = data.name || "";
@@ -1296,10 +1340,10 @@ async function loadProfile() {
       document.getElementById("prof-ec-name").value = data.emergency_contact_name || "";
       document.getElementById("prof-ec-phone").value = data.emergency_contact_phone || "";
       document.getElementById("prof-conditions").value = data.medical_conditions || "";
-      document.getElementById("prof-allergy").value = data.allergy || ""; // Updated ID in HTML as well if needed
+      document.getElementById("prof-allergy").value = data.allergy || "";
     }
   } catch (error) {
-    console.error("Load Profile Error:", error);
+    console.error("Load Profile Error:", error.message);
   }
 }
 
@@ -1778,6 +1822,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initChatbot();
   initVoiceSOS();
   initBluetooth();
+  initMedications();
 
   // Initialize Language
   setLanguage(currentLanguage);
@@ -1794,17 +1839,7 @@ document.addEventListener("DOMContentLoaded", () => {
     profileForm.addEventListener("submit", saveProfile);
   }
 
-  // Load tunnel config
-  fetch("tunnel.txt")
-    .then(res => res.text())
-    .then(url => {
-      // User specifically requested this webhook path
-      SOS_WEBHOOK_URL = url.trim() + "/webhook/sos-call";
-    })
-    .catch(err => {
-      console.warn("Tunnel config not found, using default localhost:", err);
-      SOS_WEBHOOK_URL = "http://localhost:5678/webhook/sos-call";
-    });
+  // Webhooks are now static https://0.0.0.0:10000
 
   const logoutBtn = document.getElementById("logoutBtn");
 
@@ -1823,29 +1858,112 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Symptom Camera
+  // Symptom Camera & Inline Pill Logic
   const symptomCameraBtn = document.getElementById("symptomCameraBtn");
+  const cameraPill = document.getElementById("cameraPill");
+  const pillUseCamera = document.getElementById("pillUseCamera");
+  const pillUploadPic = document.getElementById("pillUploadPic");
   const symptomImageInput = document.getElementById("symptomImageInput");
-  if (symptomCameraBtn && symptomImageInput) {
-    symptomCameraBtn.addEventListener("click", () => {
+
+  const videoContainer = document.getElementById("videoContainer");
+  const closeCameraBtn = document.getElementById("closeCameraBtn");
+  const cameraVideo = document.getElementById("cameraVideo");
+  const capturePhotoBtn = document.getElementById("capturePhotoBtn");
+  const cameraCanvas = document.getElementById("cameraCanvas");
+
+  let cameraStream = null;
+
+  // Toggle Pill Menu
+  if (symptomCameraBtn) {
+    symptomCameraBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      cameraPill.classList.toggle("hidden");
+    });
+  }
+
+  // Close Pill on Outside Click
+  document.addEventListener("click", () => {
+    if (cameraPill) cameraPill.classList.add("hidden");
+  });
+
+  if (cameraPill) {
+    cameraPill.addEventListener("click", (e) => e.stopPropagation());
+  }
+
+  // Option 1: Live Camera
+  if (pillUseCamera) {
+    pillUseCamera.addEventListener("click", async () => {
+      cameraPill.classList.add("hidden");
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" }
+        });
+        cameraVideo.srcObject = cameraStream;
+        videoContainer.classList.remove("hidden");
+      } catch (err) {
+        console.error("Camera access denied:", err);
+        alert("Unable to access camera. Please check permissions.");
+      }
+    });
+  }
+
+  // Option 2: Upload Picture
+  if (pillUploadPic) {
+    pillUploadPic.addEventListener("click", () => {
+      cameraPill.classList.add("hidden");
       symptomImageInput.click();
     });
+  }
 
+  // Handle Capture
+  if (capturePhotoBtn) {
+    capturePhotoBtn.addEventListener("click", () => {
+      if (!cameraVideo.videoWidth) return;
+
+      cameraCanvas.width = cameraVideo.videoWidth;
+      cameraCanvas.height = cameraVideo.videoHeight;
+      const context = cameraCanvas.getContext("2d");
+      context.drawImage(cameraVideo, 0, 0, cameraCanvas.width, cameraCanvas.height);
+
+      const base64Image = cameraCanvas.toDataURL("image/jpeg");
+      stopLiveCamera();
+      videoContainer.classList.add("hidden");
+
+      runImageSymptomCheck(base64Image);
+    });
+  }
+
+  // Handle Close Recording
+  if (closeCameraBtn) {
+    closeCameraBtn.addEventListener("click", () => {
+      stopLiveCamera();
+      videoContainer.classList.add("hidden");
+    });
+  }
+
+  function stopLiveCamera() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+      cameraVideo.srcObject = null;
+    }
+  }
+
+  // File Upload Handling
+  if (symptomImageInput) {
     symptomImageInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = (event) => {
-        const base64Image = event.target.result;
-        runImageSymptomCheck(base64Image);
+        runImageSymptomCheck(event.target.result);
       };
       reader.readAsDataURL(file);
-
-      // Reset input
       e.target.value = "";
     });
   }
+
 
   // Symptom Mic (Voice-to-Text)
   const symptomMicBtn = document.getElementById("symptomMicBtn");
@@ -1897,11 +2015,22 @@ document.addEventListener("DOMContentLoaded", () => {
         const { data: { user } } = await supabaseClient.auth.getUser();
 
         // Fetch profile for emergency contact
-        const { data: profile } = await supabaseClient
-          .from('profiles')
-          .select('emergency_contact_name')
-          .eq('user_id', user?.id)
-          .maybeSingle();
+        let profile = null;
+        try {
+          const { data, error: profileErr } = await supabaseClient
+            .from('profiles')
+            .select('emergency_contact_name')
+            .eq('user_id', user?.id)
+            .maybeSingle();
+
+          if (profileErr) {
+            console.warn("Profile query failed (likely schema mismatch):", profileErr.message);
+          } else {
+            profile = data;
+          }
+        } catch (e) {
+          console.warn("Failed to fetch profile during SOS:", e);
+        }
 
         // Prepare SOS payload with requested parameters
         const payload = {
@@ -1922,37 +2051,48 @@ document.addEventListener("DOMContentLoaded", () => {
           timestamp: new Date().toISOString()
         };
 
-        // Notify Webhook
-        const response = await fetch(SOS_WEBHOOK_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+        // Notify Webhooks
+        try {
+          const results = await Promise.all([
+            fetch(SOS_CALL_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            }),
+            fetch(SOS_MSG_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            })
+          ]);
+
+          if (results.some(r => r.ok)) {
+            alert(`SOS sent for ${payload.disease_name}. Emergency services notified.`);
+          } else {
+            console.warn("Some or all webhooks failed to respond correctly.");
+            alert("SOS sent via local emergency protocol.");
+          }
+        } catch (webhookErr) {
+          console.error("Webhook notification error:", webhookErr);
+          alert("SOS triggered. Check network connection.");
+        }
+
+        // Log to Supabase (Non-blocking)
+        supabaseClient.from('emergency_logs').insert({
+          user_id: user?.id,
+          type: 'sos',
+          condition: payload.disease_name,
+          severity: payload.severity,
+          location: payload.location,
+          timestamp: payload.timestamp
+        }).then(({ error: dbErr }) => {
+          if (dbErr) console.error("Supabase SOS Log Error:", dbErr);
+          loadRecentActivity();
         });
 
-        // Log to Supabase
-        try {
-          await supabaseClient.from('emergency_logs').insert({
-            user_id: user?.id,
-            type: 'sos',
-            condition: payload.disease_name,
-            severity: payload.severity,
-            location: payload.location,
-            timestamp: payload.timestamp
-          });
-          loadRecentActivity();
-        } catch (dbErr) {
-          console.error("Supabase SOS Log Error:", dbErr);
-        }
-
-        if (response.ok) {
-          alert(`SOS sent for ${payload.disease_name}. Emergency services notified.`);
-        } else {
-          console.error("Webhook failed:", response.status);
-          alert("SOS sent via local emergency protocol.");
-        }
       } catch (error) {
-        console.error("SOS Error:", error);
-        alert("Location permission is required for SOS.");
+        console.error("SOS Overall Error:", error);
+        alert("Unable to trigger SOS. Please ensure location is enabled.");
       }
     });
   }
@@ -1987,4 +2127,398 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-}); 
+});
+
+// ===============================
+// Medication Tracker Logic
+// ===============================
+let activeAlarms = new Set();
+let alarmInterval = null;
+
+function initMedications() {
+  const scanBtn = document.getElementById("scanPrescriptionBtn");
+  const manualBtn = document.getElementById("manualAddMedBtn");
+  const dashAddBtn = document.getElementById("dash-add-med-btn");
+  const medCameraPill = document.getElementById("medCameraPill");
+  const medPillUseCamera = document.getElementById("medPillUseCamera");
+  const medPillUploadPic = document.getElementById("medPillUploadPic");
+
+  if (scanBtn) {
+    scanBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      medCameraPill.classList.toggle("hidden");
+    });
+  }
+
+  if (dashAddBtn) {
+    dashAddBtn.addEventListener("click", () => {
+      switchView("medications");
+    });
+  }
+
+  if (medPillUseCamera) {
+    medPillUseCamera.addEventListener("click", () => startMedCamera());
+  }
+
+  if (medPillUploadPic) {
+    medPillUploadPic.addEventListener("click", () => {
+      const input = document.getElementById("medPrescriptionInput"); // Use the new dedicated input
+      if (input) {
+        input.onchange = (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (ev) => runPrescriptionScan(ev.target.result);
+          reader.readAsDataURL(file);
+        };
+        input.click();
+      }
+    });
+  }
+
+  if (manualBtn) {
+    manualBtn.addEventListener("click", () => {
+      const name = prompt("Enter medicine name:");
+      if (!name) return;
+      const dosage = prompt("Enter dosage (e.g., 500mg):", "1 tab");
+      const timesStr = prompt("Enter times separated by comma (e.g., 08:00, 20:00):", "08:00");
+      if (timesStr) {
+        const times = timesStr.split(",").map(t => t.trim());
+        saveMedication({ name, dosage, times }, null);
+      }
+    });
+  }
+
+  // Close pill on clicks
+  document.addEventListener("click", () => {
+    if (medCameraPill) medCameraPill.classList.add("hidden");
+  });
+
+  // Start background alarm checker
+  if (alarmInterval) clearInterval(alarmInterval);
+  alarmInterval = setInterval(checkMedicationAlarms, 60000); // Every minute
+}
+
+async function startMedCamera() {
+  const medCameraPill = document.getElementById("medCameraPill");
+  const videoContainer = document.getElementById("videoContainer");
+  const cameraVideo = document.getElementById("cameraVideo");
+  const captureBtn = document.getElementById("capturePhotoBtn");
+
+  medCameraPill.classList.add("hidden");
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    cameraVideo.srcObject = stream;
+    await cameraVideo.play();
+    videoContainer.classList.remove("hidden");
+
+    // Temporarily override capture button for medications
+    const oldOnClick = captureBtn.onclick;
+    const oldCaptureHandler = (e) => {
+      // We can't easily remove anonymous listeners, but we can stop propagation if we attach our own first
+    };
+
+    captureBtn.onclick = (e) => {
+      e.stopImmediatePropagation(); // Try to stop the symptom checker listener
+      const canvas = document.getElementById("cameraCanvas");
+      canvas.width = cameraVideo.videoWidth;
+      canvas.height = cameraVideo.videoHeight;
+      canvas.getContext("2d").drawImage(cameraVideo, 0, 0);
+      const base64 = canvas.toDataURL("image/jpeg");
+
+      // Stop camera
+      stream.getTracks().forEach(t => t.stop());
+      videoContainer.classList.add("hidden");
+
+      // Restore
+      captureBtn.onclick = oldOnClick;
+
+      runPrescriptionScan(base64);
+    };
+  } catch (err) {
+    console.error("Med camera error:", err);
+    alert("Camera access failed.");
+  }
+}
+
+async function runPrescriptionScan(base64Image, modelIndex = 0) {
+  const loader = document.getElementById("medsLoader");
+  const MODELS = [
+    "google/gemini-2.0-flash-exp:free",
+    "google/gemma-3-27b-it:free",
+    "meta-llama/llama-3.2-11b-vision-instruct:free",
+    "qwen/qwen2.5-vl-72b-instruct:free",
+    "moonshotai/kimi-vl-a3b-thinking:free"
+  ];
+
+  const modelName = MODELS[modelIndex] || MODELS[0];
+  if (loader && modelIndex === 0) loader.classList.remove("hidden");
+
+  try {
+    const compressed = await compressImage(base64Image);
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": window.location.origin,
+        "X-Title": "LifeLine Emergency Dashboard"
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: "Parse this prescription. Extract medicine names, dosages, recommended times (24h format HH:mm), and frequency (e.g., 'Daily', 'Mon, Wed, Fri', or 'Twice a week'). Return ONLY a JSON object: {\"medications\": [{\"name\": \"...\", \"dosage\": \"...\", \"times\": [\"HH:mm\"], \"frequency\": \"...\"}]}" },
+            { type: "image_url", image_url: { url: compressed } }
+          ]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      if ((response.status === 429 || response.status === 404 || response.status === 400 || response.status === 503) && modelIndex < MODELS.length - 1) {
+        console.warn(`Prescription Scan: Model ${modelName} failed with ${response.status}, trying fallback...`);
+        return runPrescriptionScan(base64Image, modelIndex + 1);
+      }
+      throw new Error(`API Error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const parsed = parseAIResponse(result);
+
+    if (!parsed || !parsed.medications) {
+      throw new Error("Invalid response format from AI");
+    }
+
+    for (const med of parsed.medications) {
+      await saveMedication(med, compressed);
+    }
+
+    alert(`Successfully scanned ${parsed.medications.length} medicines!`);
+  } catch (err) {
+    console.error("Prescription scan error:", err);
+    if (modelIndex < MODELS.length - 1) {
+      console.log("Retrying prescription scan with next model...");
+      return runPrescriptionScan(base64Image, modelIndex + 1);
+    }
+    alert("Failed to parse prescription. Please ensure the image is clear or add manually.");
+  } finally {
+    if (loader && modelIndex >= MODELS.length - 1) loader.classList.add("hidden");
+    if (loader && response && response.ok) loader.classList.add("hidden"); // Close if successful
+    loadMedications();
+  }
+}
+
+async function saveMedication(med, imageBase64) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return;
+
+  try {
+    const { error } = await supabaseClient.from('medications').insert({
+      user_id: user.id,
+      name: med.name,
+      dosage: med.dosage,
+      times: med.times,
+      frequency: med.frequency || "Daily",
+      prescription_image: imageBase64
+    });
+    if (error) throw error;
+    loadMedications();
+  } catch (err) {
+    console.error("Save med error:", err);
+  }
+}
+
+async function loadMedications() {
+  const listEl = document.getElementById("medicationsList");
+  const dashListEl = document.getElementById("dash-meds-list");
+  if (!listEl) return;
+
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return;
+
+    const { data: meds, error } = await supabaseClient
+      .from('medications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Render Main List
+    listEl.innerHTML = "";
+    if (meds.length === 0) {
+      listEl.innerHTML = `<p class="empty-msg">${TRANSLATIONS[currentLanguage]["msg-no-meds"] || 'No medications scheduled.'}</p>`;
+    } else {
+      meds.forEach(med => {
+        const nextAlarm = getNextAlarmTime(med.times);
+        const card = document.createElement("div");
+        card.className = "med-card";
+        card.innerHTML = `
+          <div class="med-info">
+            <div class="med-header-row">
+              <h4>${med.name}</h4>
+              <span class="med-frequency-tag">${med.frequency || 'Daily'}</span>
+            </div>
+            <p class="dosage"><strong>Dose:</strong> ${med.dosage}</p>
+            <div class="med-next-alarm">
+              <i class="fa-solid fa-bell"></i> Next: <span class="next-time">${nextAlarm}</span>
+            </div>
+            <div class="med-times">
+              ${med.times.map(t => `<span class="time-tag"><i class="fa-regular fa-clock"></i> ${formatTimeTo12h(t)}</span>`).join("")}
+            </div>
+            ${med.prescription_image ? `
+              <div class="med-prescription-preview">
+                <img src="${med.prescription_image}" alt="Prescription">
+              </div>
+            ` : ''}
+          </div>
+          <button class="delete-med-btn" onclick="deleteMedication('${med.id}')" title="Delete Reminder">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        `;
+        listEl.appendChild(card);
+      });
+    }
+
+    // Render Dashboard Summary
+    if (dashListEl) {
+      dashListEl.innerHTML = "";
+      if (meds.length === 0) {
+        dashListEl.innerHTML = `<p class="empty-msg">${TRANSLATIONS[currentLanguage]["msg-no-meds"] || 'No medications scheduled.'}</p>`;
+      } else {
+        meds.slice(0, 3).forEach(med => {
+          const nextAlarm = getNextAlarmTime(med.times);
+          const item = document.createElement("div");
+          item.className = "med-summary-item";
+          item.innerHTML = `
+            <div class="med-summary-info">
+              <span class="med-name">${med.name}</span>
+              <span class="med-dosage-brief">${med.dosage}</span>
+            </div>
+            <span class="med-time-brief"><i class="fa-regular fa-bell"></i> ${nextAlarm}</span>
+          `;
+          dashListEl.appendChild(item);
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Load meds error:", err);
+  }
+}
+
+async function deleteMedication(id) {
+  if (!confirm("Delete this medication reminder?")) return;
+  try {
+    await supabaseClient.from('medications').delete().eq('id', id);
+    loadMedications();
+  } catch (err) {
+    console.error("Delete error:", err);
+  }
+}
+
+async function checkMedicationAlarms() {
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return;
+
+    const { data: meds } = await supabaseClient.from('medications').select('*').eq('user_id', user.id);
+    if (!meds) return;
+
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    meds.forEach(med => {
+      if (med.times.includes(currentTime)) {
+        const alarmKey = `${med.id}-${currentTime}`;
+        if (!activeAlarms.has(alarmKey)) {
+          triggerAlarm(med);
+          activeAlarms.add(alarmKey);
+          // Clear alarm from set after a minute so it can fire next day
+          setTimeout(() => activeAlarms.delete(alarmKey), 61000);
+        }
+      }
+    });
+  } catch (err) {
+    console.warn("Alarm check failed:", err);
+  }
+}
+
+function formatTimeTo12h(timeStr) {
+  if (!timeStr || typeof timeStr !== 'string') return "";
+  let [h, m] = timeStr.split(":").map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  h = h ? h : 12; // the hour '0' should be '12'
+  return `${h}:${m.toString().padStart(2, '0')} ${ampm}`;
+}
+
+function getNextAlarmTime(times) {
+  if (!times || times.length === 0) return "--:--";
+
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Convert all times to minutes for comparison
+  const timeMinutes = times.map(t => {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + m;
+  });
+
+  // Find next time today
+  const nextToday = timeMinutes
+    .filter(m => m > currentMinutes)
+    .sort((a, b) => a - b)[0];
+
+  if (nextToday !== undefined) {
+    const hh = Math.floor(nextToday / 60);
+    const mm = nextToday % 60;
+    const timeStr = `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
+    return formatTimeTo12h(timeStr);
+  }
+
+  // If no more today, next one is the first time tomorrow
+  const firstTomorrow = timeMinutes.sort((a, b) => a - b)[0];
+  const hh = Math.floor(firstTomorrow / 60);
+  const mm = firstTomorrow % 60;
+  const timeStr = `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
+  return `${formatTimeTo12h(timeStr)} (Tomorrow)`;
+}
+
+function triggerAlarm(med) {
+  // 1. Browser Notification
+  if (Notification.permission === "granted") {
+    new Notification(TRANSLATIONS[currentLanguage]["alarm-title"] || "Medicine Time!", {
+      body: `${TRANSLATIONS[currentLanguage]["alarm-msg"] || "It's time to take your: "} ${med.name} (${med.dosage})`,
+      icon: "https://cdn-icons-png.flaticon.com/512/822/822143.png"
+    });
+  }
+
+  // 2. Audio Alert
+  const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+  audio.play().catch(e => console.warn("Audio play failed"));
+
+  // 3. UI Overlay
+  const overlay = document.createElement("div");
+  overlay.className = "alarm-overlay";
+  overlay.innerHTML = `
+    <div class="alarm-modal">
+      <div class="alarm-icon"><i class="fa-solid fa-pills pulsate"></i></div>
+      <h2>${TRANSLATIONS[currentLanguage]["alarm-title"] || "Medicine Time!"}</h2>
+      <p>${TRANSLATIONS[currentLanguage]["alarm-msg"] || "It's time to take your: "} <strong>${med.name}</strong></p>
+      <span class="alarm-dosage">${med.dosage}</span>
+      <button class="action-btn primary" onclick="this.parentElement.parentElement.remove()">${TRANSLATIONS[currentLanguage]["btn-dismiss"] || "Dismiss"}</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+// Global scope access for all main UI functions
+window.deleteMedication = deleteMedication;
+window.loadMedications = loadMedications;
+window.switchView = switchView;
+window.runPrescriptionScan = runPrescriptionScan;
+window.startMedCamera = startMedCamera;
