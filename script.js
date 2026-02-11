@@ -13,8 +13,8 @@ const supabaseClient = window.supabase.createClient(
 // API Keys (For Hackathon)
 // ===============================
 const OPENROUTER_API_KEY = deobfuscate(window.CONFIG.OPENROUTER_API_KEY);
-let SOS_WEBHOOK_URL = "";
-const WEBHOOK_PATH = deobfuscate(window.CONFIG.WEBHOOK_PATH); // "/webhook/sos"
+const SOS_CALL_URL = "https://n8n-production-29196.up.railway.app/webhook/sos-call";
+const SOS_MSG_URL = "https://n8n-production-29196.up.railway.app/webhook/sos";
 
 // State to store last AI analysis for SOS
 let lastAnalysisResult = null;
@@ -1287,7 +1287,12 @@ async function loadProfile() {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '42703' || error.message.includes('column')) {
+        console.warn("Table schema mismatch: Some profile columns are missing. Please run schema.sql in Supabase SQL Editor.");
+      }
+      throw error;
+    }
 
     if (data) {
       document.getElementById("prof-name").value = data.name || "";
@@ -1296,10 +1301,10 @@ async function loadProfile() {
       document.getElementById("prof-ec-name").value = data.emergency_contact_name || "";
       document.getElementById("prof-ec-phone").value = data.emergency_contact_phone || "";
       document.getElementById("prof-conditions").value = data.medical_conditions || "";
-      document.getElementById("prof-allergy").value = data.allergy || ""; // Updated ID in HTML as well if needed
+      document.getElementById("prof-allergy").value = data.allergy || "";
     }
   } catch (error) {
-    console.error("Load Profile Error:", error);
+    console.error("Load Profile Error:", error.message);
   }
 }
 
@@ -1794,17 +1799,7 @@ document.addEventListener("DOMContentLoaded", () => {
     profileForm.addEventListener("submit", saveProfile);
   }
 
-  // Load tunnel config
-  fetch("tunnel.txt")
-    .then(res => res.text())
-    .then(url => {
-      // User specifically requested this webhook path
-      SOS_WEBHOOK_URL = url.trim() + "/webhook/sos-call";
-    })
-    .catch(err => {
-      console.warn("Tunnel config not found, using default localhost:", err);
-      SOS_WEBHOOK_URL = "http://localhost:5678/webhook/sos-call";
-    });
+  // Webhooks are now static https://0.0.0.0:10000
 
   const logoutBtn = document.getElementById("logoutBtn");
 
@@ -1897,11 +1892,22 @@ document.addEventListener("DOMContentLoaded", () => {
         const { data: { user } } = await supabaseClient.auth.getUser();
 
         // Fetch profile for emergency contact
-        const { data: profile } = await supabaseClient
-          .from('profiles')
-          .select('emergency_contact_name')
-          .eq('user_id', user?.id)
-          .maybeSingle();
+        let profile = null;
+        try {
+          const { data, error: profileErr } = await supabaseClient
+            .from('profiles')
+            .select('emergency_contact_name')
+            .eq('user_id', user?.id)
+            .maybeSingle();
+
+          if (profileErr) {
+            console.warn("Profile query failed (likely schema mismatch):", profileErr.message);
+          } else {
+            profile = data;
+          }
+        } catch (e) {
+          console.warn("Failed to fetch profile during SOS:", e);
+        }
 
         // Prepare SOS payload with requested parameters
         const payload = {
@@ -1922,37 +1928,48 @@ document.addEventListener("DOMContentLoaded", () => {
           timestamp: new Date().toISOString()
         };
 
-        // Notify Webhook
-        const response = await fetch(SOS_WEBHOOK_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+        // Notify Webhooks
+        try {
+          const results = await Promise.all([
+            fetch(SOS_CALL_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            }),
+            fetch(SOS_MSG_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            })
+          ]);
+
+          if (results.some(r => r.ok)) {
+            alert(`SOS sent for ${payload.disease_name}. Emergency services notified.`);
+          } else {
+            console.warn("Some or all webhooks failed to respond correctly.");
+            alert("SOS sent via local emergency protocol.");
+          }
+        } catch (webhookErr) {
+          console.error("Webhook notification error:", webhookErr);
+          alert("SOS triggered. Check network connection.");
+        }
+
+        // Log to Supabase (Non-blocking)
+        supabaseClient.from('emergency_logs').insert({
+          user_id: user?.id,
+          type: 'sos',
+          condition: payload.disease_name,
+          severity: payload.severity,
+          location: payload.location,
+          timestamp: payload.timestamp
+        }).then(({ error: dbErr }) => {
+          if (dbErr) console.error("Supabase SOS Log Error:", dbErr);
+          loadRecentActivity();
         });
 
-        // Log to Supabase
-        try {
-          await supabaseClient.from('emergency_logs').insert({
-            user_id: user?.id,
-            type: 'sos',
-            condition: payload.disease_name,
-            severity: payload.severity,
-            location: payload.location,
-            timestamp: payload.timestamp
-          });
-          loadRecentActivity();
-        } catch (dbErr) {
-          console.error("Supabase SOS Log Error:", dbErr);
-        }
-
-        if (response.ok) {
-          alert(`SOS sent for ${payload.disease_name}. Emergency services notified.`);
-        } else {
-          console.error("Webhook failed:", response.status);
-          alert("SOS sent via local emergency protocol.");
-        }
       } catch (error) {
-        console.error("SOS Error:", error);
-        alert("Location permission is required for SOS.");
+        console.error("SOS Overall Error:", error);
+        alert("Unable to trigger SOS. Please ensure location is enabled.");
       }
     });
   }
