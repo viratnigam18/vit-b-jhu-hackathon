@@ -48,6 +48,9 @@ const TRANSLATIONS = {
     "card-remedy": "Medicine & Remedies",
     "label-medicines": "Suggested Medicines",
     "label-remedies": "Home Remedies",
+    "camera-options": "Photo Options",
+    "opt-use-camera": "Use Camera",
+    "opt-upload-pic": "Upload Picture",
     "disclaimer": "<strong>Disclaimer:</strong> AI suggestions are NOT medical advice. Consult a professional before use.",
     "card-history": "Recent Activity / Medical History",
     "card-directory": "Nearby Hospital Directory",
@@ -112,6 +115,9 @@ const TRANSLATIONS = {
     "card-remedy": "दवा और उपचार",
     "label-medicines": "सुझाई गई दवाएं",
     "label-remedies": "घरेलू उपचार",
+    "camera-options": "फोटो विकल्प",
+    "opt-use-camera": "कैमरा उपयोग करें",
+    "opt-upload-pic": "फोटो अपलोड करें",
     "disclaimer": "<strong>अस्वीकरण:</strong> AI सुझाव चिकित्सा सलाह नहीं हैं। उपयोग करने से पहले किसी पेशेवर से परामर्श लें।",
     "card-history": "हाल की गतिविधि / चिकित्सा इतिहास",
     "card-directory": "नजदीकी अस्पताल निर्देशिका",
@@ -1818,29 +1824,112 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Symptom Camera
+  // Symptom Camera & Inline Pill Logic
   const symptomCameraBtn = document.getElementById("symptomCameraBtn");
+  const cameraPill = document.getElementById("cameraPill");
+  const pillUseCamera = document.getElementById("pillUseCamera");
+  const pillUploadPic = document.getElementById("pillUploadPic");
   const symptomImageInput = document.getElementById("symptomImageInput");
-  if (symptomCameraBtn && symptomImageInput) {
-    symptomCameraBtn.addEventListener("click", () => {
+
+  const videoContainer = document.getElementById("videoContainer");
+  const closeCameraBtn = document.getElementById("closeCameraBtn");
+  const cameraVideo = document.getElementById("cameraVideo");
+  const capturePhotoBtn = document.getElementById("capturePhotoBtn");
+  const cameraCanvas = document.getElementById("cameraCanvas");
+
+  let cameraStream = null;
+
+  // Toggle Pill Menu
+  if (symptomCameraBtn) {
+    symptomCameraBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      cameraPill.classList.toggle("hidden");
+    });
+  }
+
+  // Close Pill on Outside Click
+  document.addEventListener("click", () => {
+    if (cameraPill) cameraPill.classList.add("hidden");
+  });
+
+  if (cameraPill) {
+    cameraPill.addEventListener("click", (e) => e.stopPropagation());
+  }
+
+  // Option 1: Live Camera
+  if (pillUseCamera) {
+    pillUseCamera.addEventListener("click", async () => {
+      cameraPill.classList.add("hidden");
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" }
+        });
+        cameraVideo.srcObject = cameraStream;
+        videoContainer.classList.remove("hidden");
+      } catch (err) {
+        console.error("Camera access denied:", err);
+        alert("Unable to access camera. Please check permissions.");
+      }
+    });
+  }
+
+  // Option 2: Upload Picture
+  if (pillUploadPic) {
+    pillUploadPic.addEventListener("click", () => {
+      cameraPill.classList.add("hidden");
       symptomImageInput.click();
     });
+  }
 
+  // Handle Capture
+  if (capturePhotoBtn) {
+    capturePhotoBtn.addEventListener("click", () => {
+      if (!cameraVideo.videoWidth) return;
+
+      cameraCanvas.width = cameraVideo.videoWidth;
+      cameraCanvas.height = cameraVideo.videoHeight;
+      const context = cameraCanvas.getContext("2d");
+      context.drawImage(cameraVideo, 0, 0, cameraCanvas.width, cameraCanvas.height);
+
+      const base64Image = cameraCanvas.toDataURL("image/jpeg");
+      stopLiveCamera();
+      videoContainer.classList.add("hidden");
+
+      runImageSymptomCheck(base64Image);
+    });
+  }
+
+  // Handle Close Recording
+  if (closeCameraBtn) {
+    closeCameraBtn.addEventListener("click", () => {
+      stopLiveCamera();
+      videoContainer.classList.add("hidden");
+    });
+  }
+
+  function stopLiveCamera() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+      cameraVideo.srcObject = null;
+    }
+  }
+
+  // File Upload Handling
+  if (symptomImageInput) {
     symptomImageInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = (event) => {
-        const base64Image = event.target.result;
-        runImageSymptomCheck(base64Image);
+        runImageSymptomCheck(event.target.result);
       };
       reader.readAsDataURL(file);
-
-      // Reset input
       e.target.value = "";
     });
   }
+
 
   // Symptom Mic (Voice-to-Text)
   const symptomMicBtn = document.getElementById("symptomMicBtn");

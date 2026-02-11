@@ -107,9 +107,29 @@
               <button id="symptomMicBtn" class="chat-icon-btn" style="padding: 0 5px; color: var(--text-secondary);">
                 <i class="fa-solid fa-microphone"></i>
               </button>
-              <button id="symptomCameraBtn" class="chat-icon-btn" style="padding: 0 5px; color: var(--text-secondary);">
-                <i class="fa-solid fa-camera"></i>
-              </button>
+              <div class="camera-wrapper">
+                <button id="symptomCameraBtn" class="chat-icon-btn"
+                  style="padding: 0 5px; color: var(--text-secondary);">
+                  <i class="fa-solid fa-camera"></i>
+                </button>
+                <div id="cameraPill" class="camera-pill hidden">
+                  <button id="pillUseCamera" title="Use Camera"><i class="fa-solid fa-camera"></i></button>
+                  <button id="pillUploadPic" title="Upload Picture"><i class="fa-solid fa-upload"></i></button>
+                </div>
+                <!-- Video Preview (Inline Popup) -->
+                <div id="videoContainer" class="video-preview-popup hidden">
+                  <video id="cameraVideo" autoplay playsinline></video>
+                  <div class="video-controls">
+                    <button id="capturePhotoBtn" class="capture-btn">
+                      <i class="fa-solid fa-circle"></i>
+                    </button>
+                    <button id="closeCameraBtn" class="close-video-tiny">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                  <canvas id="cameraCanvas" style="display: none;"></canvas>
+                </div>
+              </div>
               <input type="file" id="symptomImageInput" accept="image/*" style="display: none;">
             </div>
           </div>

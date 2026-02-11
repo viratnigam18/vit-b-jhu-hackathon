@@ -1832,3 +1832,137 @@ header {
     color: var(--primary-color);
     font-size: 1.2rem;
 }
+
+/* Camera Pill Styles */
+.camera-wrapper {
+    position: relative;
+}
+
+.camera-pill {
+    position: absolute;
+    bottom: calc(100% + 15px);
+    left: 50%;
+    transform: translateX(-50%) translateY(0);
+    background: white;
+    padding: 8px;
+    border-radius: 30px;
+    display: flex;
+    gap: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border-color);
+    z-index: 100;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.camera-pill.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-50%) translateY(10px);
+    pointer-events: none;
+}
+
+.camera-wrapper:hover .camera-pill {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+.camera-pill button {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.camera-pill button:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: scale(1.1);
+}
+
+.camera-pill button i {
+    font-size: 1rem;
+}
+
+/* Floating Video Preview */
+.video-preview-popup {
+    position: absolute;
+    top: calc(100% + 15px);
+    left: 50%;
+    transform: translateX(-50%) translateY(0) scale(1);
+    width: 550px;
+    background: #000;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+    border: 3px solid var(--primary-color);
+    z-index: 999;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.video-preview-popup.hidden {
+    display: none;
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(0.95);
+}
+
+#cameraVideo {
+    width: 100%;
+    display: block;
+    transform: scaleX(-1);
+    /* Mirror for user friendly preview */
+}
+
+.video-preview-popup .video-controls {
+    position: absolute;
+    bottom: 12px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+}
+
+.video-preview-popup .capture-btn {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    border: 3px solid white;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-preview-popup .capture-btn i {
+    color: white;
+    font-size: 1.8rem;
+}
+
+.close-video-tiny {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid white;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.close-video-btn:hover {
+    background: rgba(255, 0, 0, 0.6);
+}
